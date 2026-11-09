@@ -225,3 +225,13 @@ Em aberto: u32 @obj+8/@obj+0 do header BGA, ligacao BGA<->tempo da musica, param
 SDL2+OpenGL 1.x. `PiuReconstructed.exe`/`jogar.bat`. Seleção (STAGE.CFG + TITLE/Txxx.PNZ), jogo (BGA do .DAT com keyframes/SPR, setas de ARROW01/03.PNG, julgamento 0x23229/janelas 0x24BA6, perda de linha=Miss, vida 500 inicial, fail em 0), resultado. Frame do BGA = pos/4 (60 fps; 0x250C5). Selftest com autoplay: 172/172 Perfect em 101_H1; sem entrada: Misses e fail. Pendente: gamepad, preview de música, sprites/efeitos originais (SP2 ARROW541-545), hold/long notes, telas originais.
 
 
+## Atualizacao 13 - fluxo attract/boot (confirmado no PIU.EXE)
+- Laco principal FUN_00020F37; estado em DAT_00153710: 0 idle, 0x0A/0x0B selecao (0x2B763/0x2D0BF), 0x0D/0x0E logo, 0x10/0x11 intro, 0x13/0x14 titulo, 0x16/0x17 tela 03.DAT (0x28843/0x288A4, 1920 quadros), 0x1C setup (0x2E46A), 0x1D (0x2E4D4), 0x01 jogo (0x247E2).
+- Tabela de nomes em 0x12B0C9 {ptr nome, fn}: exit, idle, run, setup, sel, intro, logo, title.
+- idle 0x20E7A: credito (FUN_204BA; 99 se free play) -> estado 0x13; senao n=DAT_001537D8++%4: 0 logo(81.DAT), 1 intro(01.DAT), 3 FUN_2D14D (nao reconstruido).
+- Contador de quadros DAT_003D651C; FUN_2643C(EAX=bga, EDX=quadro) desenha as 50 camadas. Logo/intro: quadro = contador ANTES do ++; titulo: quadro = contador % 180 (IDIV 0xB4 em 0x2874D).
+- logo termina em 500 (0x1F4); intro em 0x3B1; titulo volta ao idle com contador >= 0x708 sem credito/start. START exige credito (FUN_2047F = DAT_00153730 / DAT_006E191A); 60 quadros (0x3C) depois do START (ou P1+P2) -> 0x2B763 (selecao).
+- DAT_006E1919 != 0 e DAT_006E1914 == 0 -> passa pela tela 03.DAT (0x28843) antes da selecao (valores vem de config em runtime; assumido 0).
+- Texto do titulo: printf("%d%02d",3,0x34) em (601,458) preto e (600,459) branco = "352" (versao). Overlay FUN_20134: CREDIT(S)/INSERT COIN(S)/PRESS CENTER STEP da FONT.PNG (00.DAT), alpha pisca |(t%200-100)*0.01|+0.2 (floats em 0x12000C/0x120010). Posicoes na tela: INFERIDAS.
+- Moeda: FUN_20424 (bit 0x20000 do input, estado != 0x1D): DAT_00153730++. ESC (0x100) -> estado 0. Alt+X sai.
+- Pendente: FUN_2D14D (demo/ranking), selecao real 0x2D0BF, tela 03.DAT, 83.DAT/84.DAT, setup 0x2E46A, resultado real.
