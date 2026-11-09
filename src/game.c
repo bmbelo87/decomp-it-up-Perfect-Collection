@@ -441,7 +441,7 @@ static int chart_path(char *out, size_t sz, int id, int d)
 }
 
 /* ------------------------------------------------------------------ jogo */
-enum { S_SELECT, S_PLAY, S_RESULT, S_MODE, S_MCONF, S_IDLE, S_LOGO, S_INTRO, S_TITLE, S_VIEW };   /* original: DAT_00153710 = 0 idle, 0xD/0xE logo, 0x10/0x11 intro, 0x13/0x14 title, 0xB selecao */
+enum { S_SELECT, S_PLAY, S_RESULT, S_MODE, S_MCONF, S_WHEEL, S_IDLE, S_LOGO, S_INTRO, S_TITLE, S_VIEW };   /* original: DAT_00153710 = 0 idle, 0xD/0xE logo, 0x10/0x11 intro, 0x13/0x14 title, 0xB selecao */
 static int g_state = S_IDLE;
 static ResSet g_arrow;       /* BGA/00.DAT */
 static Spr *g_sp541, *g_sp542;
@@ -877,13 +877,14 @@ static void mode_step(void)
     bga_unload(&g_ab); bga_load_name(&g_ab, "097"); g_m_anim = 0; g_state = S_MCONF;      /* fase 3 (FUN_2C4AB): BGA 097 mostra o modo escolhido */
 }
 static const int MCONF_BASE[7] = { 0, 0, 120, 360, 240, 480, 600 };     /* 0x12CB25: quadro inicial na 097.BGA por DAT_006E1778 */
+static void wheel_enter(void);
 static void mconf_step(void)
 {
     if (++g_m_anim < 0x1e) return;                              /* FUN_2C4AB: ao chegar a 30 quadros: FUN_294B9 e fase 4 */
     music_stop(); bga_unload(&g_ab); bga_unload(&g_ab2);
     static const char *const BG[7] = { "091", "091", "092", "094", "093", "095", "096" };      /* FUN_2C63F 0x2C623: modo -> DAT de fundo */
     bga_load_name(&g_ab, "098"); bga_load_name(&g_ab2, BG[g_m_sel]);
-    g_m_frame = 0; g_state = S_SELECT;                          /* fase 5 = lista de musicas (ainda a reconstrucao antiga, sobre 098 + fundo) */
+    wheel_enter();                                              /* fase 4 -> fase 5 (FUN_2C63F -> FUN_2C840): roda de musicas */
 }
 static void draw_mconf(void) { bga_draw(&g_ab, g_m_anim + MCONF_BASE[g_m_sel]); }
 static void bar_cell(int id, int hl)                         /* FUN_2AFFF / FUN_2B04E: acha (folha, faixa) na tabela e desenha rotacionado 45 graus */
@@ -938,6 +939,93 @@ static void draw_mode(void)
     bga_draw(&g_ab, 150);
     glPopMatrix();
     if (g_m_dir == 0) bga_draw_n(&g_ab, g_m_frame % 30, 0x2e); else if (g_m_dir == 1) bga_draw_n(&g_ab, g_m_frame % 30, 0x2f);
+}
+/* ------------------------------------------------------------------ roda de musicas (estado 0xB fase 5: FUN_0002C840)
+ * Mesma logica de entrada da escolha de modo: bits 8/0x10 apontam o cartaz esquerdo/direito (dir 0/1; repetir confirma), bits 1/2 rolam a roda
+ * de 2 em 2 (dir 2/3, 22 quadros). Lista = ids de musica (DAT_006E0EE8 >> 16; aqui todas as do STAGE.CFG). Cada id e uma faixa de BARxx (FUN_2AFFF,
+ * as mesmas da escolha de modo) e um recorte de capa CDxx.PNG da 90.DAT (FUN_2AE17/FUN_2AD1B: folhas 2x2 de 128x96, tabela 0x12C5D1). */
+static const int CD_TBL[26][4] = {
+    { 101, 102, 103, 104 }, { 105, 106, 107, 108 }, { 109, 110, 111, 328 }, { 113, 114, 115, 116 }, { 117, 118, 119, 201 }, { 202, 203, 204, 205 },
+    { 206, 207, 208, 210 }, { 211, 212, 213, 214 }, { 215, 216, 217, 218 }, { 219, 220, 221, 223 }, { 224, 225, 301, 302 }, { 303, 304, 305, 306 },
+    { 307, 308, 309, 310 }, { 311, 312, 313, 314 }, { 315, 316, 317, 318 }, { 319, 320, 321, 322 }, { 323, 324, 325, 326 }, { 327, 401, 402, 403 },
+    { 404, 405, 406, 407 }, { 408, 409, 410, 411 }, { 412, 413, 414, 415 }, { 501, 502, 503, 504 }, { 505, 506, 507, 508 }, { 509, 510, 511, 512 },
+    { 513, 514, 515, 516 }, { 517, 0, 0, 0 } };
+static int g_w_list[256], g_w_n, g_w_pos;
+static int w_idx(int k) { return g_w_n ? (((g_w_pos + k) % g_w_n) + g_w_n) % g_w_n : 0; }      /* FUN_2B09D: indice circular */
+static void wheel_enter(void)
+{
+    g_w_n = 0; for (int i = 0; i < g_nsongs && g_w_n < 256; i++) g_w_list[g_w_n++] = i;
+    g_w_pos = 0; g_m_frame = g_m_anim = 0; g_m_dir = g_m_prev = -1; g_m_t0 = 0; g_state = S_WHEEL;     /* 0x2C63F: 17A4=0, 1794=1788=-1, 179C=0, fase 5 */
+}
+static void cover_cell(int id)                               /* FUN_2AE17 + FUN_2AD1B: quadro 200x142 centrado, recorte (j%2, j/2) da folha */
+{
+    for (int r = 0; r < 26; r++) for (int j = 0; j < 4; j++) if (CD_TBL[r][j] == id) {
+        char nm[16]; snprintf(nm, sizeof nm, "CD%02d", r + 1);
+        Tex *tx = g_bars_ok ? rs_tex(&g_bars, nm) : NULL; if (!tx) return;
+        int c = j % 2, w = j / 2;
+        quad(tx, -100, -71, 200, 142, c * 0.5f, (w + 1) * 0.375f, (c + 1) * 0.5f, w * 0.375f);
+        return;
+    }
+}
+static void cover_slot(int side, int an)                     /* FUN_0002B266: capa em x=161|481, y=320 (y para cima) + 3 pulsos ao apontar */
+{
+    int p = (an / 2) % 50, id = g_songs[g_w_list[w_idx(side)]].id;
+    glPushMatrix(); glTranslatef(0, 480, 0); glScalef(1, -1, 1); glTranslatef(side == 0 ? 161.f : 481.f, 320.f, 0);
+    glColor4f(1, 1, 1, 1); cover_cell(id);
+    if (p) {
+        static const float S[3][3] = { { 150, 30, 60 }, { 100, 20, 40 }, { 50, 10, 20 } };       /* 0x1205B3..0x1205C7 */
+        for (int q = 0; q < 3; q++) if (p < (int)S[q][2]) {
+            float f = p / S[q][0] + 1; glPushMatrix(); glScalef(f, f, 1); glColor4f(1, 1, 1, 1 - p / S[q][1]); cover_cell(id); glPopMatrix(); }
+    }
+    glPopMatrix(); glColor4f(1, 1, 1, 1);
+}
+static void wheel_items(void)                                /* FUN_0002B0DD: como mode_items, 8 a direita e 8 a esquerda, indice circular */
+{
+    glColor4f(1, 1, 1, 1);
+    glPushMatrix(); glTranslatef(0, 480, 0); glScalef(1, -1, 1);
+    glPushMatrix(); glTranslatef(213, 218, 0);
+    glPushMatrix();
+    for (int i = 0; i < 8; i++) { bar_cell(g_songs[g_w_list[w_idx(i)]].id, 0); glTranslatef(66, 0, 0); }
+    glPopMatrix(); glPushMatrix();
+    for (int i = -1; i > -9; i--) { glTranslatef(-66, 0, 0); bar_cell(g_songs[g_w_list[w_idx(i)]].id, 0); }
+    glPopMatrix(); glPopMatrix(); glPopMatrix();
+}
+static void wheel_step(void)
+{
+    int remain = 30 - g_m_t0 / 60;
+    if (g_m_anim == 0) {
+        if (g_m_dir == 2) { g_w_pos -= 2; if (g_w_pos < 0) g_w_pos += g_w_n; }
+        else if (g_m_dir == 3) { g_w_pos += 2; if (g_w_pos >= g_w_n) g_w_pos -= g_w_n; }
+    }
+    if (!((g_m_prev == g_m_dir && g_m_prev != -1 && g_m_dir < 2) || remain < 1)) { g_m_anim++; g_m_frame++; g_m_t0++; return; }
+    if (g_m_dir == -1 || g_m_dir > 1) g_m_dir = 0;
+    g_sel = g_w_list[w_idx(g_m_dir)];                          /* DAT_006E17A0 = lado escolhido; fase 7 (nao lida ainda): lista antiga de dificuldade */
+    sfx_play(SFX_ENTER, 3);                                    /* 0x2CDE3: FUN_30FAC idx 4 canal 3 */
+    g_m_frame = 0; g_state = S_SELECT;
+}
+static void draw_wheel(void)
+{
+    int remain = 30 - g_m_t0 / 60, local = 0;
+    glColor4f(1, 1, 1, 1);
+    glPushMatrix(); glTranslatef(320, 240, 0); glRotatef(g_m_frame * 0.06f, 0, 0, 1); glTranslatef(-320, -240, 0);   /* fundo colorido gira devagar */
+    bga_draw(&g_ab2, (g_m_frame * 2) % 90);
+    glPopMatrix();
+    bga_draw(&g_ab, 0);
+    for (int e = 2; e <= 3; e++) {                             /* setas SHIFT: camadas 0x1B/0x1C e 0x1E/0x1F no quadro 90 + anim */
+        int c = ((g_m_dir == e && g_m_anim < 0x5a) ? g_m_anim : 0) + 0x5a;
+        if (e == 2) { bga_draw_n(&g_ab, c, 0x1b); bga_draw_n(&g_ab, c, 0x1c); } else { bga_draw_n(&g_ab, c, 0x1e); bga_draw_n(&g_ab, c, 0x1f); }
+    }
+    if (g_m_dir == 2 && g_m_anim < 0x16) local = g_m_anim * 6 - 0x84;
+    if (g_m_dir == 3 && g_m_anim < 0x16) local = -g_m_anim * 6 + 0x84;
+    glPushMatrix(); glTranslatef((float)local, 0, 0); wheel_items(); glPopMatrix();
+    if (g_m_dir == 0 || g_m_dir == 1) {
+        bga_draw_n(&g_ab, 0x96, 0x23); bga_draw_n(&g_ab, 0x96, 0x2b); bga_draw_n(&g_ab, 0x96, 0x2c);
+        cover_slot(0, 0); cover_slot(1, 0); cover_slot(g_m_dir, g_m_anim);
+        glColor4f(1, 1, 1, 1);
+        textf(0x128, 480 - 0x63 - 8, 1, "%5.1f", g_songs[g_w_list[w_idx(g_m_dir)]].bpm);      /* FUN_2C5CA: "%5.1f" em (0x128, 0x63) */
+    }
+    glColor4f(1, 1, 0, 1); textf(584, 480 - 429 - 16, 2, "%d", remain < 0 ? 0 : remain);       /* FUN_0002A672 (numero do tempo): formato nao lido, texto provisorio */
+    glColor4f(1, 1, 1, 1);
 }
 static void draw_attract(void)
 {
@@ -1010,7 +1098,7 @@ static void set_view(void)
 
 int main(int argc, char **argv)
 {
-    int conf_start = 0, mode_start = 0, svc_start = 0, autostart = -1, autodiff = 1, autotest = 0, testsec = 6; const char *shotpath = NULL; int noauto = 0, skip = 0; const char *viewname = NULL;
+    int wheel_start = 0, wheel_dir = -1, conf_start = 0, mode_start = 0, svc_start = 0, autostart = -1, autodiff = 1, autotest = 0, testsec = 6; const char *shotpath = NULL; int noauto = 0, skip = 0; const char *viewname = NULL;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-game") && i + 1 < argc) snprintf(g_dir, sizeof g_dir, "%s", argv[++i]);
         else if (!strcmp(argv[i], "-song") && i + 1 < argc) autostart = atoi(argv[++i]);
@@ -1020,6 +1108,8 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "-skip")) skip = 1;
         else if (!strcmp(argv[i], "-conf") && i + 1 < argc) conf_start = atoi(argv[++i]);
         else if (!strcmp(argv[i], "-mode") && i + 1 < argc) mode_start = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "-wheel") && i + 1 < argc) wheel_start = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "-wdir") && i + 1 < argc) wheel_dir = atoi(argv[++i]);
         else if (!strcmp(argv[i], "-service") && i + 1 < argc) svc_start = atoi(argv[++i]) + 1;
         else if (!strcmp(argv[i], "-view") && i + 1 < argc) viewname = argv[++i];
         else if (!strcmp(argv[i], "-frame") && i + 1 < argc) g_bgaf = atoi(argv[++i]);
@@ -1038,6 +1128,12 @@ int main(int argc, char **argv)
     glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); glDisable(GL_DEPTH_TEST);
     font_init(); audio_init(); songs_load(); svc_load(); if (conf_start) { g_m_sel = conf_start; bga_load_name(&g_ab, "097"); g_m_anim = 0; g_state = S_MCONF; }
     if (mode_start) { g_sflag = mode_start == 2 ? 3 : 1; mode_enter(); }
+    if (wheel_start) {                                          /* teste: abre direto a roda (-wheel MODO [-wdir 0|1|2|3]) */
+        static const char *const BG[7] = { "091", "091", "092", "094", "093", "095", "096" };
+        char bp[300]; path_of(bp, sizeof bp, "BGA/90.DAT"); g_bars_ok = rs_open(&g_bars, bp) == 0;
+        g_m_sel = wheel_start; bga_load_name(&g_ab, "098"); bga_load_name(&g_ab2, BG[g_m_sel]); wheel_enter();
+        if (wheel_dir >= 0) { g_m_dir = wheel_dir; g_m_anim = 10; }
+    }
     if (svc_start) { svc_open(); g_svs = svc_start - 1; g_svcur = g_svs ? g_svs - 1 : 0; }
     char p[300]; path_of(p, sizeof p, "BGA/00.DAT");
     if (rs_open(&g_arrow, p)) { logf_("BGA/00.DAT nao encontrado em %s\n", g_dir); }
@@ -1069,6 +1165,13 @@ int main(int argc, char **argv)
                     else if (k == SDLK_KP_5 || k == SDLK_KP_ENTER || k == SDLK_KP_PLUS) g_start2 = 1;   /* centro do P2 = Num 5 */
                 } else if (g_state == S_MCONF) {
                     if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); g_state = S_IDLE; }
+                } else if (g_state == S_WHEEL) {
+                    if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); bga_unload(&g_ab2); g_state = S_IDLE; }
+                    else if (k == SDLK_z || k == SDLK_KP_1 || k == SDLK_LEFT) mode_press(2);        /* mesmas teclas da escolha de modo */
+                    else if (k == SDLK_c || k == SDLK_KP_3 || k == SDLK_RIGHT) mode_press(3);
+                    else if (k == SDLK_q || k == SDLK_KP_7) mode_press(0);
+                    else if (k == SDLK_e || k == SDLK_KP_9) mode_press(1);
+                    else if (k == SDLK_RETURN || k == SDLK_SPACE) mode_confirm();
                 } else if (g_state == S_MODE) {
                     if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); g_state = S_IDLE; }
                     /* PIU.EXE FUN_2BD93: bits 1/2 rolam a lista (dir 2/3), bits 8/0x10 apontam cur+0/cur+1 (dir 0/1; repetir entra); centro nao e lido.
@@ -1109,10 +1212,10 @@ int main(int argc, char **argv)
             play_update();
         }
         { uint32_t now = SDL_GetTicks(); acc += now - t_prev; t_prev = now; if (acc > 250) acc = 250;
-          while (acc >= 1000.0 / 60.0) { acc -= 1000.0 / 60.0; if (g_state >= S_IDLE) attract_step(); else if (g_state == S_MODE) mode_step(); else if (g_state == S_MCONF) mconf_step(); else if (g_state == S_SELECT && g_ab.ok) g_m_frame++; } }
+          while (acc >= 1000.0 / 60.0) { acc -= 1000.0 / 60.0; if (g_state >= S_IDLE) attract_step(); else if (g_state == S_MODE) mode_step(); else if (g_state == S_MCONF) mconf_step(); else if (g_state == S_WHEEL) wheel_step(); else if (g_state == S_SELECT && g_ab.ok) g_m_frame++; } }
         set_view(); glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT); glColor4f(1, 1, 1, 1);
         if (g_state >= S_IDLE) draw_attract();
-        else if (g_state == S_MODE) draw_mode(); else if (g_state == S_MCONF) draw_mconf(); else if (g_state == S_SELECT) draw_select(); else if (g_state == S_PLAY) draw_play(); else draw_result();
+        else if (g_state == S_MODE) draw_mode(); else if (g_state == S_MCONF) draw_mconf(); else if (g_state == S_WHEEL) draw_wheel(); else if (g_state == S_SELECT) draw_select(); else if (g_state == S_PLAY) draw_play(); else draw_result();
         if (g_service) svc_draw();
         if (autotest && shotpath && SDL_GetTicks() + 150 > t_end) {
             uint8_t *px = (uint8_t *)malloc((size_t)g_winw * g_winh * 3); FILE *f = fopen(shotpath, "wb");
