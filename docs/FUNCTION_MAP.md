@@ -288,3 +288,9 @@ SDL2+OpenGL 1.x. `PiuReconstructed.exe`/`jogar.bat`. Seleção (STAGE.CFG + TITL
 - I/O TEST: "1.TEST  BUTTON" (0x104,400) "2.SERVICE BUTTON" (0x17C) "3.CLEAR BUTTON" (0x168) "4.COIN" (0x154), estado por FUN_2D640 (nao lido; aqui: botao apertado fica vermelho - inferido). EEPROM TEST: WRITE/READ/RESULT com "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345" e SUCCESS/FAIL.
 - INFERIDO: tela SCREEN TEST (FUN_2D194/2D259 nao lidas: barras de cor), valor de AUDIO #id, arquivo de persistencia PIU_EEPROM.BIN (o original grava em EEPROM), coin padrao 1.
 - game.c: svc_open/svc_press/svc_draw; F1 abre/SERVICE, F2 TEST, F3 coin clear, F4 moeda; `-service N` abre direto a tela N. COIN SETTING agora controla g_cpc/g_freeplay.
+
+## Atualizacao 20 - musicas de tela [observado]
+- FUN_00028442 (inicio da intro 01.DAT): FUN_294B9 (para o audio); se ha credito -> titulo; senao, se DAT_006e1918 (DEMO SOUND) != 0: FUN_00029263(EAX=1) + FUN_0002949F = AUDIO\001.AUD.
+- FUN_0002BB5E (entrada da selecao / escolha de modo, apos PRESS CENTER STEP): FUN_294B9 e AUDIO\002.AUD incondicional (EAX=2), carrega BGA 099 (strings 0x1205F9..), zera DAT_006E17A4/1778, 1788=-1, 1798=179C=1.
+- FUN_00028843 (ajuda 03.DAT, estado 0x17): AUDIO\003.AUD (EAX=3).
+- game.c: intro toca 001 se DEMO SOUND (padrao inicial ligado: inferido, o DEFAULT SETTING literal do codigo poe 0); selecao toca 002; os demais estados chamam music_stop.
