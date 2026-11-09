@@ -5,10 +5,11 @@ Como jogar: dê dois cliques em `jogar.bat` (usa a pasta `..\game`). Ou: `PiuRec
 ## Controles
 | | |
 |---|---|
-| Seleção | Cima/Baixo música (PgUp/PgDn ±10), Esquerda/Direita nível, **Enter** jogar, F1–F4 velocidade (x1/x2/x4/x8), **Esc** sair, F11 tela cheia |
+| Seleção | Cima/Baixo música (PgUp/PgDn ±10), Esquerda/Direita nível, **Enter** jogar, **1–8** velocidade, **Esc** sair, F11 tela cheia |
 | P1 (5 pads) | `Z` ↙, `Q` ↖, `S` centro, `E` ↗, `C` ↘ |
 | P2 / Double | Numpad `1` ↙, `7` ↖, `5` centro, `9` ↗, `3` ↘ (em fases single o numpad também joga as 5 colunas) |
 | Em jogo | Esc volta à seleção |
+| Arcade | **F1** SERVICE (abre o menu de serviço e seleciona), **F2** TEST (move), **F3** Coin Clear, **F4** moeda (5/F5 também), Alt+X sai |
 
 ## Estado (Fase 1: fidelidade)
 - Fiel (confirmado no assembly): tempo de 240 Hz, scroll, troca de BPM, janelas Perfect/Great/Good/Bad por BPM, regras de julgamento, combo/pontuação/vida, formatos `.NOT`, `.AUD`(MP3), `.PNZ`(PNG), `.DAT`(RES/BGA/SPR/SP2).
