@@ -9,7 +9,7 @@ Como jogar: dê dois cliques em `jogar.bat` (usa a pasta `..\game`). Ou: `PiuRec
 | P1 (5 pads) | `Z` ↙, `Q` ↖, `S` **centro**, `E` ↗, `C` ↘ |
 | P2 / Double | Numpad `1` ↙, `7` ↖, `5` **centro**, `9` ↗, `3` ↘ (em fases single o numpad também joga as 5 colunas) |
 | Título | `S` (ou Enter/Espaço) = START P1 (PRESS CENTER STEP), Num `5` (ou Num Enter/Num +) = START P2 |
-| Escolha de modo | `Q`/`E` (P2 Num 7/9) rolam a lista; `Z`/`C` (P2 Num 1/3) apontam o item da esquerda/direita e apertar o mesmo de novo entra (como no original); Enter/Espaço = atalho |
+| Escolha de modo | `Z`/`C` (P2 Num 1/3, azuis) rolam a lista; `Q`/`E` (P2 Num 7/9, cima) selecionam o item da esquerda/direita e apertar o mesmo de novo entra (como no código original); Enter/Espaço = atalho |
 | Em jogo | Esc volta à seleção |
 | Arcade | **F1** SERVICE (abre o menu de serviço e seleciona), **F2** TEST (move), **F3** Coin Clear, **F4** moeda (F5 também), Alt+X sai |
 

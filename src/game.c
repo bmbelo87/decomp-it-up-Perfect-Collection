@@ -1056,13 +1056,13 @@ int main(int argc, char **argv)
                     else if (k == SDLK_KP_5 || k == SDLK_KP_ENTER || k == SDLK_KP_PLUS) g_start2 = 1;   /* centro do P2 = Num 5 */
                 } else if (g_state == S_MODE) {
                     if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); g_state = S_IDLE; }
-                    /* PIU.EXE FUN_2BD93 + ELF player1keys: bit1=Q bit2=E bit4=S bit8=Z bit0x10=C; P2 = Num 7/9/5/1/3.
-                     * bits 1/2 (Q/E) rolam a lista (dir 2/3); bits 8/0x10 (Z/C) apontam o item da esquerda/direita (dir 0/1) e apertar o MESMO de novo entra;
-                     * o centro (S) nao e lido nesta tela. */
-                    else if (k == SDLK_q || k == SDLK_KP_7 || k == SDLK_LEFT) mode_press(2);
-                    else if (k == SDLK_e || k == SDLK_KP_9 || k == SDLK_RIGHT) mode_press(3);
-                    else if (k == SDLK_z || k == SDLK_KP_1) mode_press(0);
-                    else if (k == SDLK_c || k == SDLK_KP_3) mode_press(1);
+                    /* PIU.EXE FUN_2BD93: bits 1/2 rolam a lista (dir 2/3), bits 8/0x10 apontam cur+0/cur+1 (dir 0/1; repetir entra); centro nao e lido.
+                     * Bits do pad confirmados na pratica pelo usuario: 1/2 = baixo-esq/baixo-dir (azuis Z/C), 8/0x10 = cima-esq/cima-dir (Q/E).
+                     * (A tabela de teclas do ELF Linux nao serve para isso: e o mapeamento do porte, nao dos bits do DOS.) */
+                    else if (k == SDLK_z || k == SDLK_KP_1 || k == SDLK_LEFT) mode_press(2);
+                    else if (k == SDLK_c || k == SDLK_KP_3 || k == SDLK_RIGHT) mode_press(3);
+                    else if (k == SDLK_q || k == SDLK_KP_7) mode_press(0);
+                    else if (k == SDLK_e || k == SDLK_KP_9) mode_press(1);
                     else if (k == SDLK_RETURN || k == SDLK_SPACE) mode_confirm();       /* atalho extra (nao e do original) */
                 } else if (g_state == S_SELECT) {
                     int dl[7], nd = diffs_avail(g_songs[g_sel].id, dl);

@@ -306,5 +306,4 @@ SDL2+OpenGL 1.x. `PiuReconstructed.exe`/`jogar.bat`. Seleção (STAGE.CFG + TITL
 
 ## Atualizacao 22 - teclas e bits do pad (ELF Linux `piu`) [observado]
 - ELF: player1keys @0x081134E0 = Q,E,S,Z,C (GLFW 0x51,0x45,0x53,0x5A,0x43) -> bits 0..4 do pad (io_input_kbd_p1: `esi ^= 1<<i`); player2keys @0x081134CC = KP7,KP9,KP5,KP1,KP3 (0x147,0x149,0x145,0x141,0x143). serviceKeys G,H,J (+K, L no P2) ligam bits de service/coin (0x200, 0x4000, 0x8000, 0x400).
-- Logo, no PIU.EXE: bit1 = Q (acima-esq), bit2 = E (acima-dir), bit4 = S (centro), bit8 = Z (abaixo-esq), bit0x10 = C (abaixo-dir).
-- FUN_2BD93 (escolha de modo): Q/E rolam a lista (dir 2/3), Z/C apontam cur+0/cur+1 (dir 0/1) e apertar o mesmo de novo confirma; o centro (S) NAO e testado nessa tela.
+- CORRECAO: a tabela de teclas do ELF e do PORTE, nao dos bits do DOS (nao serve para inferir a ordem dos bits). Pela observacao do usuario na tela de modo: bits 1/2 = baixo-esq/baixo-dir (Z/C) rolam a lista (dir 2/3); bits 8/0x10 = cima-esq/cima-dir (Q/E) selecionam cur+0/cur+1 (dir 0/1) e repetir o mesmo confirma. Ordem dos bits do pad no DOS: 1=DL 2=DR 4=centro 8=UL 0x10=UR (inferido). O centro (S) nao e testado nessa tela.
