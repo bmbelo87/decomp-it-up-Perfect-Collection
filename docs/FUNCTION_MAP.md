@@ -244,3 +244,13 @@ SDL2+OpenGL 1.x. `PiuReconstructed.exe`/`jogar.bat`. Seleção (STAGE.CFG + TITL
 - Lista horizontal com passo 0x42 (66 px) em FUN_2BD93; timer de selecao 0x1E - (FUN_2057F/0xF0) (30 s); teclas por jogador: bits 8/0x10/1/2 = esq/dir/..., modo em DAT_006E1778 (1..6 -> flags 0x10,0x20,0x100,0x80,0x40,0x400 em DAT_0012B028).
 - 83.DAT = BGA da tela de jogo (ctx2, bar, t_perf/t_great/t_good/t_bad/t_miss/t_combo, ngb, lin; 0..2790 quadros); 84.DAT = ending; 03.DAT = tela de ajuda (1935 quadros).
 - Ferramenta: piu.exe -view <nome> -frame N -selftest 1 -shot x.ppm renderiza qualquer BGA.
+
+## Atualizacao 15 - selecao real: fase 2 = escolha de MODO (FUN_0002bd93) [observado]
+- FUN_0002bc14 (fase 1->2): desenha 099 (FUN_0002643c), zera DAT_006e17a4 (contador de animacao), DAT_006e1798=2, DAT_006e1784=7.
+- FUN_0002bd93 (fase 2): lista vertical de modos, item = 0x42 px, scroll anima 0x16 frames (3 px/frame).
+  - DAT_006e1788 = direcao (0/1 parado, 2 sobe, 3 desce); DAT_006e179c = item atual; DAT_006e178c = total de itens.
+  - Entrada: DAT_00153718 (P1: bits 1,2,8,0x10) e byte alto (P2); DAT_00153720/21 bit1/bit2 = repeticao.
+  - Item (DAT_006e1788+DAT_006e179c) -> DAT_006e1778: 0->4 (ou 5 se 2 jogadores), 1->1, 2->2, 3->3, 4->6.
+  - Confirma: bits em DAT_0012b028 |= 0x10(modo1) 0x20(2) 0x100(3) 0x80(4) 0x40(5) 0x400(6); DAT_006e1798=3 (proxima fase).
+  - Timer: 30 s (0x1e - tempo/0xF0) -> auto-confirma o item atual.
+- Conclusao: a ordem real e 099 -> escolha de MODO -> (fase 3) musica. A lista de musicas so vem na fase 3.
