@@ -1051,15 +1051,15 @@ int main(int argc, char **argv)
                 if (g_service) { if (k == SDLK_ESCAPE) g_service = 0; continue; }
                 if (g_state >= S_IDLE) {
                     if (k == SDLK_ESCAPE) { bga_unload(&g_ab); g_state = S_IDLE; }     /* 0x20F37: ESC -> estado 0 */
-                    else if (k == SDLK_RETURN || k == SDLK_SPACE) g_start1 = 1;
-                    else if (k == SDLK_KP_ENTER || k == SDLK_KP_PLUS) g_start2 = 1;
+                    else if (k == SDLK_s || k == SDLK_RETURN || k == SDLK_SPACE) g_start1 = 1;        /* PRESS CENTER STEP: S = centro do P1 */
+                    else if (k == SDLK_KP_5 || k == SDLK_KP_ENTER || k == SDLK_KP_PLUS) g_start2 = 1;   /* centro do P2 = Num 5 */
                 } else if (g_state == S_MODE) {
                     if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); g_state = S_IDLE; }
-                    else if (k == SDLK_LEFT || k == SDLK_q) mode_press(2);          /* rola para a esquerda (bit 1) */
-                    else if (k == SDLK_RIGHT || k == SDLK_e) mode_press(3);         /* rola para a direita (bit 2) */
-                    else if (k == SDLK_z || k == SDLK_UP) mode_press(0);            /* escolhe o item da esquerda (bit 8) */
-                    else if (k == SDLK_c || k == SDLK_DOWN) mode_press(1);          /* escolhe o item da direita (bit 0x10) */
-                    else if (k == SDLK_RETURN || k == SDLK_s || k == SDLK_SPACE) mode_press(g_m_dir == 1 ? 1 : 0);
+                    else if (k == SDLK_LEFT || k == SDLK_q || k == SDLK_KP_7) mode_press(2);          /* rola para a esquerda (bit 1) */
+                    else if (k == SDLK_RIGHT || k == SDLK_e || k == SDLK_KP_9) mode_press(3);         /* rola para a direita (bit 2) */
+                    else if (k == SDLK_z || k == SDLK_UP || k == SDLK_KP_1) mode_press(0);            /* escolhe o item da esquerda (bit 8) */
+                    else if (k == SDLK_c || k == SDLK_DOWN || k == SDLK_KP_3) mode_press(1);          /* escolhe o item da direita (bit 0x10) */
+                    else if (k == SDLK_RETURN || k == SDLK_s || k == SDLK_SPACE || k == SDLK_KP_5) mode_press(g_m_dir == 1 ? 1 : 0);
                 } else if (g_state == S_SELECT) {
                     int dl[7], nd = diffs_avail(g_songs[g_sel].id, dl);
                     if (k == SDLK_ESCAPE) { music_stop(); g_state = S_IDLE; }
@@ -1072,12 +1072,12 @@ int main(int argc, char **argv)
                     /* desativado: F1-F4 agora sao service/coin */ /* else if (k >= SDLK_F1 && k <= SDLK_F4) g_speed = 1 << (k - SDLK_F1); */
                     /* desativado: F6-F9 (1,2,4,8) */ /* else if (k >= SDLK_F6 && k <= SDLK_F9) g_speed = 1 << (k - SDLK_F6); */
                     else if (k >= SDLK_1 && k <= SDLK_8) g_speed = (int)(k - SDLK_0);   /* velocidade 1..8 */
-                    else if ((k == SDLK_RETURN || k == SDLK_KP_ENTER) && nd) { sfx_play(SFX_ENTER, 3); start_song(dl[g_dsel]); }   /* 0x2C486: idx 4 canal 3 */
+                    else if ((k == SDLK_RETURN || k == SDLK_KP_ENTER || k == SDLK_s || k == SDLK_KP_5) && nd) { sfx_play(SFX_ENTER, 3); start_song(dl[g_dsel]); }   /* 0x2C486: idx 4 canal 3 */
                 } else if (g_state == S_PLAY) {
                     if (k == SDLK_ESCAPE) { music_stop(); g_state = S_IDLE; }
                     else on_press(key_to_col(k, g_dbl));
                 } else if (g_state == S_RESULT) {
-                    if (k == SDLK_RETURN || k == SDLK_ESCAPE || k == SDLK_KP_ENTER) g_state = S_SELECT;
+                    if (k == SDLK_RETURN || k == SDLK_ESCAPE || k == SDLK_KP_ENTER || k == SDLK_s || k == SDLK_KP_5) g_state = S_SELECT;
                 }
             }
         }
