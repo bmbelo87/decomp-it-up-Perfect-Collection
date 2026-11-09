@@ -269,3 +269,9 @@ SDL2+OpenGL 1.x. `PiuReconstructed.exe`/`jogar.bat`. Seleção (STAGE.CFG + TITL
 - Init: FUN_00028297 = init do chip (27cd4/27b2a, espera 500 ms, detecta com FUN_3037c) e entao FUN_3155e le PIU.BIN em registros de 16 bytes (tamanho>>4 = 35) para a tabela de vozes, depois FUN_30fa5.
 - PIU.BIN (560 bytes) = 35 descritores de voz (enderecos encadeados: o fim de um = inicio do proximo) -> o PCM em si NAO esta em arquivo nem no EXE: fica na ROM da placa de som arcade.
 - Conclusao: nao existem WAVs desta versao para extrair; os 35 efeitos so podem ser substituidos por amostras externas.
+
+## Atualizacao 18 - SFX: pasta EFFECTS + ELF Linux (piu, R5/v3.52, nao stripado) [observado]
+- game/EFFECTS tem 35 WAV = as 35 vozes de PIU.BIN. Ordem/indice = tabela `effects_file_names` (@0x08113500 do ELF): 0 01-1,1 01-11,2 2-1,3 3-2,4 4-2,5 5-1,6 6-2,7 7-1,8 8-1,9 9-5,10 9-A,11 9-B,12 9-C,13 9-D,14 9-F,15 TIME_LIMIT,16 10-2,17 13-1,18 12-1,19 14,20 START1,21 START2,22 START3,23..27 RANK_A,B,C,D,F,28..31 NOTGOOD1-4,32..34 GOODJOB1-3.
+- O ELF e uma traducao do codigo DOS: simbolos jump_XXXXX / func_XXXXX = enderecos VA do PIU.EXE (ex.: func_294b9, jump_2c14d). ac_sound_play_effect(EAX=0, EDX=indice, EBX=canal) = FUN_00030fac.
+- Chamadas (VA DOS: indice/canal): 0x20470 moeda 21/-; 0x2c14d,2c181,2c249,2c27a (mover L/R no modo) e 0x2cb76,2cbaa,2cc72,2cca3 (mover L/R na musica) 16/4 (10-2); 0x2c486 e 0x2cdc3 confirmar 4/3 (4-2); 0x2882e,288f2,2acda,2acf9,2d048,2d0xx apertos de pad 3/2 (3-2); 0x2a91b 2/1 (2-1, 5 s); 0x25e44 rank 27/6 (RANK_F, demais ranks entram pelo mesmo ponto); 0x24f50,24f9a 7/7 (7-1); 0x234b5 9/2 (9-5); 0x2e151 parar efeito (eax=1).
+- game.c: sfx_load/sfx_play (8 canais, novo no mesmo canal corta o anterior). Ligados: moeda, mover, entrar na musica, join no titulo, rank do resultado. NAO ligados (ponto de chamada ainda nao rastreado): "1 credito completo", NOTGOOD/GOODJOB, TIME_LIMIT, 2-1, 7-1, 9-x.
