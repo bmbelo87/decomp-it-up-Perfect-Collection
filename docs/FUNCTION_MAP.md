@@ -221,3 +221,7 @@ Em aberto: u32 @obj+8/@obj+0 do header BGA, ligacao BGA<->tempo da musica, param
 - Pendente p/ fidelidade: vida inicial/limites (0x23A4B), `[0x3D0BE0]` (modifier de life_rate; -700 setado em 0x24B2D..), calculo de pontuacao final, hold/long notes (mask colunas 10-12?), tela de resultado, Glide->OpenGL, SDL2 + janela, audio MP3, input.
 
 
+## Atualização 12 — Jogo jogável (src/game.c)
+SDL2+OpenGL 1.x. `PiuReconstructed.exe`/`jogar.bat`. Seleção (STAGE.CFG + TITLE/Txxx.PNZ), jogo (BGA do .DAT com keyframes/SPR, setas de ARROW01/03.PNG, julgamento 0x23229/janelas 0x24BA6, perda de linha=Miss, vida 500 inicial, fail em 0), resultado. Frame do BGA = pos/4 (60 fps; 0x250C5). Selftest com autoplay: 172/172 Perfect em 101_H1; sem entrada: Misses e fail. Pendente: gamepad, preview de música, sprites/efeitos originais (SP2 ARROW541-545), hold/long notes, telas originais.
+
+
