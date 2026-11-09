@@ -188,3 +188,30 @@ Correção: 0x27BE9/0x27C1C NÃO são julgamento; só setam bits de moeda/servi�
 - Resets 0x23155/0x23194/0x231D6: células != '0' voltam a '1' (colunas 0-4, 5-9, 0-9) — usadas quando o jogador erra (stage break/continue).
 
 
+## Atualização 9 — Formatos de arquivo (confirmado, 100% dos arquivos validam por Adler-32)
+
+Checksum em tudo = Adler-32 (0x298D1/0x2992E, mod 0xFFF1).
+- Loader genérico 0x289B0 (path EAX, buffer EDX): fread u32 H, depois ate 0x300000 bytes; descifra 0x2896A; confere adler.
+  AUDIO\%03d.AUD (0x29263), AUDIO\D%03d.AUD (0x29295), TITLE\%s.PNZ (0x2A533) usam esse loader.
+  Cifra: p[i] = bitrev8(c[i]) XOR KEY[(H+i)&0x3FF]; KEY = 1024 bytes em 0x12B13C (dados iniciais, obj4); H == adler32(p).
+  Resultado: .PNZ = PNG; .AUD = MP3 (ID3v2). tools/piu_unpack.py (322/322 OK).
+- Container BGA\*.DAT "RES " (res_load 0x29A45; res_fopen 0x26290 le o diretorio das 50 entradas de 0x1000-ish ...): header 0x18 {magic,ver=2,count,datasize,?,adler(data cifrado)};
+  diretorio count*28 cifrado com XOR(0xD2,+0x95) (0x29949) {name[16],size,offset,adler(plain)}; dados com a mesma XOR. Conteudo: .PNG(3380), .SPR(3583), .BGA(114 = script do BGA), .SP2(5). tools/piu_res.py (117/117 OK).
+- Ainda abertos: formatos .BGA, .SPR, .SP2; TGA (cap\p5_%03d.TGA, font.tga) em disco? (nao ha); camada Glide.
+
+
+## Atualização 10 — .BGA / .SPR / .SP2 (assembly + tools/piu_bga.py: 114/114 .BGA e todos .SPR/.SP2 parseiam)
+
+BGA (loader 0x2628F -> res_load 0x29A45, entrada "<nome>.bga"): header 16B {'BGA\0', u32 @obj+4 (120/146/180...: parece BPM, nao confirmado), u32 @obj+8, u32 @obj+0}.
+  Depois ATE 50 layers (o loader le 50 mas o arquivo pode ter menos: 102.BGA tem 40; fim = EOF): name[64] (.spr/.tga do layer), u32 N, N keyframes de 44 B. Tamanho = 16 + 68*L + 44*sum(N), L<=50.
+  Keyframe (render 0x25FA5; 0x2643C(obj,frame) percorre os 50 layers; 0x2647A(obj,layer,frame) um so):
+    s16 time, s16 active (0 => nao desenha/termina), f32 x, y, pivx, pivy, scale, rot, r, g, b, a  (cores x 0x12B0B0/0x12B0B4 = 1.0)
+    Antes da 1a key nada e desenhado; entre keys i-1 e i interpola linear (0x25F88: a+(b-a)*t, t=(f-t0)/(t1-t0)) todos os campos; apos a ultima key => retorna 1 (fim).
+    Matriz: translate(0,480) -> translate(x,-y) -> pivot/rotate(rot, Z) -> scale(s,s,1) (Y invertido, tela 640x480); glColor(r,g,b,a); sprite desenhado por 0x2EFAD(sprite=layer+0x44, t).
+SPR/SP2 (texto, CRLF): "TYPE <TILE|ANI|PATTERN a w h|IMAGE>" / "NUM n" (2 arquivos omitem a palavra NUM) / n linhas "T arquivo.tga x y w h u0 v0 u1 v1" (pixels, textura 256x256; ".tga" mapeia para o .PNG de mesmo nome no RES).
+  0x2EFAD (desenho por tipo, campo u16 em +0x20): tipo 0/1 (TILE/IMAGE) desenha todas as entradas; 2 (ANI) escolhe frame floor(t*n); 3 (PATTERN a w h) w*h tiles repetindo/rolando os frames com parametro a (inferido).
+  0x2EEFF desenha 1 quad: vertices de tela (words em +0x24,+0x26,+0x28,+0x2A; Y=480-y), UV float em +0x2C..+0x38.
+  SP2 (arrow541..545): linhas de 11 tokens "T tag arquivo x y w h u v w h" (tag extra; fonte provavelmente u,v,w,h) -- nao confirmado.
+Em aberto: u32 @obj+8/@obj+0 do header BGA, ligacao BGA<->tempo da musica, parametro a do PATTERN, font.tga/event.tga.
+
+
