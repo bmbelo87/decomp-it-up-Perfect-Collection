@@ -303,3 +303,8 @@ SDL2+OpenGL 1.x. `PiuReconstructed.exe`/`jogar.bat`. Seleção (STAGE.CFG + TITL
 - Entrada (DAT_00153718): bits 1/2 = rola esquerda/direita (dir 2/3; cur-- / cur++, cur 0..3, so com anim>3; limite -> anim=22), bits 8/0x10 = escolhe item cur+0 / cur+1 (dir 0/1). Confirma quando apertar o MESMO botao 2 vezes (prev==dir) ou o tempo < 1 s; item (dir+cur) -> modo 4|5 (Double/Battle), 1, 2, 3, 6 -> DAT_0012B028 |= 0x80|0x40, 0x10, 0x20, 0x100, 0x400; proxima fase 3 (lista de musicas).
 - Nao lidos: FUN_2A672 (numero do tempo), FUN_2B958, FUN_21915, FUN_20134 (HUD de jogadores/creditos). Mapeamento teclas->bits e inferido (Q/Left, E/Right, Z/Up, C/Down, Enter = confirma).
 - game.c: S_MODE (mode_enter/mode_step/draw_mode, bga_draw_n); `-mode 1|2` abre a tela com 1 ou 2 jogadores.
+
+## Atualizacao 22 - teclas e bits do pad (ELF Linux `piu`) [observado]
+- ELF: player1keys @0x081134E0 = Q,E,S,Z,C (GLFW 0x51,0x45,0x53,0x5A,0x43) -> bits 0..4 do pad (io_input_kbd_p1: `esi ^= 1<<i`); player2keys @0x081134CC = KP7,KP9,KP5,KP1,KP3 (0x147,0x149,0x145,0x141,0x143). serviceKeys G,H,J (+K, L no P2) ligam bits de service/coin (0x200, 0x4000, 0x8000, 0x400).
+- Logo, no PIU.EXE: bit1 = Q (acima-esq), bit2 = E (acima-dir), bit4 = S (centro), bit8 = Z (abaixo-esq), bit0x10 = C (abaixo-dir).
+- FUN_2BD93 (escolha de modo): Q/E rolam a lista (dir 2/3), Z/C apontam cur+0/cur+1 (dir 0/1) e apertar o mesmo de novo confirma; o centro (S) NAO e testado nessa tela.
