@@ -412,6 +412,8 @@ typedef struct { int id; float bpm; char title[64]; } Song;
 static Song g_songs[256]; static int g_nsongs;
 static const char *DIFFS[7] = { "E1", "H1", "H3", "E2", "H2", "H4", "DB" };
 static const char *DIFFN[7] = { "EASY", "HARD", "CRAZY", "EASY DBL", "HARD DBL", "CRAZY DBL", "DOUBLE" };
+typedef struct { int id, lv, song; } SEnt;
+static SEnt g_sec[9][128]; static int g_nsec[9];      /* STAGE.CFG: secoes MODE (posicionais: EASY HARD DOUBLE REMIX REMIXDB CRAZY REMIXCZ MENU END), linhas "S nivel id" */
 static void songs_load(void)
 {
     char p[300]; size_t n; path_of(p, sizeof p, "STAGE.CFG");
@@ -419,6 +421,9 @@ static void songs_load(void)
     char *s = (char *)realloc(b, n + 1); s[n] = 0; char *sv = NULL;
     for (char *l = strtok_s(s, "\r\n", &sv); l; l = strtok_s(NULL, "\r\n", &sv)) {
         int id; float bpm; char t[64];
+        static int sec = -1; int lv; while (*l == ' ' || *l == '	') l++;      /* linhas das secoes comecam com TAB */
+        if (!strncmp(l, "MODE", 4)) { sec++; continue; }
+        if (sec >= 0 && sec < 9 && l[0] == 'S' && sscanf(l, "S %d %d", &lv, &id) == 2 && g_nsec[sec] < 128) { SEnt *e = &g_sec[sec][g_nsec[sec]++]; e->id = id; e->lv = lv; e->song = -1; continue; }
         if (l[0] == 'T' && l[1] == ' ' && sscanf(l, "T %d:%f:%63[^\r\n]", &id, &bpm, t) == 3 && g_nsongs < 256) {
             Song *so = &g_songs[g_nsongs++]; so->id = id; so->bpm = bpm;
             for (char *c = t; *c; c++) if ((unsigned char)*c > 126) *c = '?';
@@ -426,6 +431,7 @@ static void songs_load(void)
         }
     }
     free(s);
+    for (int a = 0; a < 9; a++) for (int i = 0; i < g_nsec[a]; i++) for (int j = 0; j < g_nsongs; j++) if (g_songs[j].id == g_sec[a][i].id) g_sec[a][i].song = j;
 }
 static int chart_path(char *out, size_t sz, int id, int d)
 {
@@ -682,9 +688,9 @@ static void draw_title_overlay(void)            /* FUN_00020134 */
     }
     for (int p = 0; p < 2; p++) {
         if (g_sflag & (1 << p)) continue;
-        float x = p ? 400 : 60;
-        if (cred_avail()) font_blit(x, 410, 1, 74, 228, 95, blink);            /* PRESS CENTER STEP */
-        else font_blit(x + 40, 410, 91, 49, 253, 73, blink);                   /* INSERT COIN(S) */
+        /* FUN_00020134 (estado 0x14): FUN_21885(x, y=0x16 para cima, id): 0x25 PRESS CENTER STEP em x=0xE / 0x198; 0x24 INSERT COIN em x=0x30 / 0x1A8 */
+        if (cred_avail()) font_blit(p ? 408 : 14, 480 - 22 - 21, 1, 74, 228, 95, blink);
+        else font_blit(p ? 424 : 48, 480 - 22 - 24, 91, 49, 253, 73, blink);
     }
 }
 /* ------------------------------------------------------------------ menu de SERVICE (PIU.EXE: FUN_0002e4d4 despacha DAT_0012cb80 = tela 0..8)
@@ -950,13 +956,18 @@ static const int CD_TBL[26][4] = {
     { 307, 308, 309, 310 }, { 311, 312, 313, 314 }, { 315, 316, 317, 318 }, { 319, 320, 321, 322 }, { 323, 324, 325, 326 }, { 327, 401, 402, 403 },
     { 404, 405, 406, 407 }, { 408, 409, 410, 411 }, { 412, 413, 414, 415 }, { 501, 502, 503, 504 }, { 505, 506, 507, 508 }, { 509, 510, 511, 512 },
     { 513, 514, 515, 516 }, { 517, 0, 0, 0 } };
-static int g_w_list[256], g_w_n, g_w_pos;
+static int g_w_list[256], g_w_n, g_w_pos, g_w_sec;
+static int w_song(int k);
 static int w_idx(int k) { return g_w_n ? (((g_w_pos + k) % g_w_n) + g_w_n) % g_w_n : 0; }      /* FUN_2B09D: indice circular */
 static void wheel_enter(void)
 {
-    g_w_n = 0; for (int i = 0; i < g_nsongs && g_w_n < 256; i++) g_w_list[g_w_n++] = i;
+    /* FUN_2C63F: DAT_006E1784 = secao do STAGE.CFG pelo modo (flags 0x10 EASY, 0x20 HARD, 0x80 DOUBLE, 0x100 REMIX, 0x400 CRAZY; BATTLE 0x40 depende de DAT_0012B024: 0 EASY)
+     * REMIXDB (0x200) e REMIXCZ (0x800) existem no codigo mas quem liga essas flags nao foi achado: inferido = REMIX jogado em double / crazy. */
+    { static const int SECOF[7] = { 0, 0, 1, 3, 2, 0, 5 }; g_w_sec = SECOF[g_m_sel]; }
+    g_w_n = 0; for (int i = 0; i < g_nsec[g_w_sec] && g_w_n < 256; i++) if (g_sec[g_w_sec][i].song >= 0) g_w_list[g_w_n++] = i;
     g_w_pos = 0; g_m_frame = g_m_anim = 0; g_m_dir = g_m_prev = -1; g_m_t0 = 0; g_state = S_WHEEL;     /* 0x2C63F: 17A4=0, 1794=1788=-1, 179C=0, fase 5 */
 }
+static int w_song(int k) { return g_sec[g_w_sec][g_w_list[w_idx(k)]].song; }
 static void cover_cell(int id)                               /* FUN_2AE17 + FUN_2AD1B: quadro 200x142 centrado, recorte (j%2, j/2) da folha */
 {
     for (int r = 0; r < 26; r++) for (int j = 0; j < 4; j++) if (CD_TBL[r][j] == id) {
@@ -969,7 +980,7 @@ static void cover_cell(int id)                               /* FUN_2AE17 + FUN_
 }
 static void cover_slot(int side, int an)                     /* FUN_0002B266: capa em x=161|481, y=320 (y para cima) + 3 pulsos ao apontar */
 {
-    int p = (an / 2) % 50, id = g_songs[g_w_list[w_idx(side)]].id;
+    int p = (an / 2) % 50, id = g_songs[w_song(side)].id;
     glPushMatrix(); glTranslatef(0, 480, 0); glScalef(1, -1, 1); glTranslatef(side == 0 ? 161.f : 481.f, 320.f, 0);
     glColor4f(1, 1, 1, 1); cover_cell(id);
     if (p) {
@@ -985,9 +996,9 @@ static void wheel_items(void)                                /* FUN_0002B0DD: co
     glPushMatrix(); glTranslatef(0, 480, 0); glScalef(1, -1, 1);
     glPushMatrix(); glTranslatef(213, 218, 0);
     glPushMatrix();
-    for (int i = 0; i < 8; i++) { bar_cell(g_songs[g_w_list[w_idx(i)]].id, 0); glTranslatef(66, 0, 0); }
+    for (int i = 0; i < 8; i++) { bar_cell(g_songs[w_song(i)].id, 0); glTranslatef(66, 0, 0); }
     glPopMatrix(); glPushMatrix();
-    for (int i = -1; i > -9; i--) { glTranslatef(-66, 0, 0); bar_cell(g_songs[g_w_list[w_idx(i)]].id, 0); }
+    for (int i = -1; i > -9; i--) { glTranslatef(-66, 0, 0); bar_cell(g_songs[w_song(i)].id, 0); }
     glPopMatrix(); glPopMatrix(); glPopMatrix();
 }
 static void wheel_step(void)
@@ -999,7 +1010,7 @@ static void wheel_step(void)
     }
     if (!((g_m_prev == g_m_dir && g_m_prev != -1 && g_m_dir < 2) || remain < 1)) { g_m_anim++; g_m_frame++; g_m_t0++; return; }
     if (g_m_dir == -1 || g_m_dir > 1) g_m_dir = 0;
-    g_sel = g_w_list[w_idx(g_m_dir)];                          /* DAT_006E17A0 = lado escolhido; fase 7 (nao lida ainda): lista antiga de dificuldade */
+    g_sel = w_song(g_m_dir);                          /* DAT_006E17A0 = lado escolhido; fase 7 (nao lida ainda): lista antiga de dificuldade */
     sfx_play(SFX_ENTER, 3);                                    /* 0x2CDE3: FUN_30FAC idx 4 canal 3 */
     g_m_frame = 0; g_state = S_SELECT;
 }
@@ -1022,7 +1033,8 @@ static void draw_wheel(void)
         bga_draw_n(&g_ab, 0x96, 0x23); bga_draw_n(&g_ab, 0x96, 0x2b); bga_draw_n(&g_ab, 0x96, 0x2c);
         cover_slot(0, 0); cover_slot(1, 0); cover_slot(g_m_dir, g_m_anim);
         glColor4f(1, 1, 1, 1);
-        textf(0x128, 480 - 0x63 - 8, 1, "%5.1f", g_songs[g_w_list[w_idx(g_m_dir)]].bpm);      /* FUN_2C5CA: "%5.1f" em (0x128, 0x63) */
+        textf(0x128, 480 - 0x63 - 8, 1, "%5.1f", g_songs[w_song(g_m_dir)].bpm);      /* FUN_2C5CA: "%5.1f" em (0x128, 0x63) */
+        textf(0x130, 480 - 0x46 - 8, 1, "%d", g_sec[g_w_sec][g_w_list[w_idx(g_m_dir)]].lv);      /* nivel (byte1 da entrada = 2o campo de "S nivel id"), "%d" em (0x130,0x46) */
     }
     glColor4f(1, 1, 0, 1); textf(584, 480 - 429 - 16, 2, "%d", remain < 0 ? 0 : remain);       /* FUN_0002A672 (numero do tempo): formato nao lido, texto provisorio */
     glColor4f(1, 1, 1, 1);
