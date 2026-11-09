@@ -312,3 +312,8 @@ SDL2+OpenGL 1.x. `PiuReconstructed.exe`/`jogar.bat`. Seleção (STAGE.CFG + TITL
 - FUN_00025FA5 (0x260D9..0x2624F): entre as chaves i-1 e i interpola so x, y, escala, rotacao e cor r,g,b,a (FUN_25F88 = lerp); o pivo (px,py, +0xC/+0x10) vem da chave anterior, sem interpolar. Matriz: translate(0,480), translate(x,-y), translate(px,-py), rotate, scale, translate(-px,py), translate(0,-480) = y para cima, equivalente ao y para baixo usado em game.c.
 - Efeito: o anel de zoom/fade das bolinhas SHIFT (099.BGA camadas 0x1C e 0x1F, m09_1/m09_2.SPR, 1,0 -> 1,2 com alfa 1 -> 0, pivo (135,392)) saia do lugar porque o pivo da ultima chave (0,0, inativa) era interpolado.
 - piu_data.c: piu_bga_eval passa a usar o pivo da chave anterior.
+
+## Atualizacao 24 - fase 3: animacao do modo escolhido (097.DAT) e fase 4/5 [observado]
+- FUN_0002BB5E carrega BGA 097 no objeto 0x2FF58C. FUN_0002C4AB (fase 3, 30 quadros): FUN_2643C(0x2FF58C, quadro = DAT_006E17A4 + tabela[DAT_006E1778]) com tabela @0x12CB25 = {0,0,120,360,240,480,600} (modo 1 NORMAL 0, 2 HARD 120, 4 DOUBLE 240, 3 REMIX 360, 5 BATTLE 480, 6 CRAZY 600; a 097.BGA tem 6 trechos de 120 quadros: nzb/hdb/dbb/nrb/btb/czb). Ao chegar a 30: FUN_294B9 (para a musica 002) e DAT_006E1798 = 4.
+- FUN_0002C63F (fase 4): carrega BGA 098 (objeto 0x15C95C) e o fundo colorido do modo no objeto 0x2FF58C: DAT_006E1778 -> 0:091, 1:091 (NORMAL rosa), 2:092 (HARD laranja), 3:094 (REMIX azul), 4:093 (DOUBLE verde), 5:095 (BATTLE vermelho), 6:096 (CRAZY roxo); FUN_2B609(0), FUN_2B70B (lista pelo grupo DAT_006E1784 conforme o modo), DAT_006E1798 = 5.
+- game.c: S_MCONF (mconf_step/draw_mconf) e, depois, S_SELECT com 098 + fundo 09x sob a lista antiga; `-conf N` abre a animacao do modo N.
