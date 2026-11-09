@@ -68,3 +68,40 @@ Faixas de ID: 1xx = 1st, 2xx = 2nd, 3xx = 3rd, 4xx = 4th, 5xx = desta versão (i
 3. Handlers de estado de gameplay (identificar qual state = seleção, jogo, resultado).
 
 ---
+## Atualização 2 — STAGE.CFG e convenção de chamada
+
+### Convenção de chamada (C — observado em 0x20D37: `mov eax,0x120077; call 0x2A19B`)
+Watcom register convention (`-3r`): args em **EAX, EDX, EBX, ECX**, resto na pilha. O decompilador do Ghidra **perde esses args**
+(mostra `FUN_xxx(void)`). Sempre confirmar com `read_bytes`/assembly antes de assumir a assinatura. `0xFB6E2(n)` = `__CHK` (stack check), ignorar.
+
+### Carga do STAGE.CFG
+- `0x2A19B` **stage_cfg_load(const char *path)** (C): `fopen`(0xFBA01) → `while fgets`(0xFCACF) → tokeniza (0xFC6A5 → `DAT_006E1780`) → `strcmp`(0xFC570) com 3 palavras-chave → handlers
+  `0x2A039`, `0x2A0CA`, `0x2A16A` (I: `T`, `MODE`, `S`, a ordem exata ainda não verificada) → `fclose`(0xFBC75) → laço final: `DAT_006E163A[i*2] = DAT_006E163C[i*2] - DAT_006E1638[i*2]` (duração = fim − início, int16 stride 4; I)
+- Contadores globais: `0x12C380`, `0x12C384`, `0x12C388` zerados no início (I: nº de T / modos / entradas).
+- Chamada em `game_init` com `"stage.cfg"` (@0x120077) em EAX.
+
+### Formato STAGE.CFG (C — lido do arquivo E:\06_pc\game\STAGE.CFG)
+```
+T <id>:<bpm>:<título>        105 músicas (id 1xx=19, 2xx=24, 3xx=30, 4xx=15, 5xx=17)
+MODE<TAB><nome>              EASY HARD DOUBLE REMIX REMIXDB CRAZY REMIXCZ MENU END
+<TAB>S<TAB><nível><TAB><id>  entradas da seção (EASY=61 HARD=69 DOUBLE=70 REMIX=18 REMIXDB=15 CRAZY=37 REMIXCZ=4 MENU=5)
+```
+IDs: 1xx=1st, 2xx=2nd, 3xx=3rd, 4xx=4th, 5xx=esta versão. Os 5xx aparecem em EASY (509–517) e HARD/DOUBLE, etc.
+Cada id liga a `STEP/<id>_<DB|E1|E2|H1|H2…>.NOT` (padrão visto: 101_DB.NOT, 101_H1.NOT, 103_E1.NOT…).
+
+---
+## Atualização 3 — parser do STAGE.CFG fechado + loader de steps
+
+### 0x2A19B stage_cfg_load (C) — handlers
+O nome do MODE **não é lido**: modos são **posicionais** (ordem no arquivo: 0 EASY,1 HARD,2 DOUBLE,3 REMIX,4 REMIXDB,5 CRAZY,6 REMIXCZ,7 MENU,8 END; máx 9).
+- `0x2A0CA` linha **T** (I: keyword não lida): `song[DAT_0012C380]`: stride 40 B @0x6DFC28: `+0 int id` (atoi 0xFC4F5), `+4 float bpm` (strtod 0xFC8DC), título via 0xFBE3F; `DAT_0012C380++`.
+- `0x2A039` linha **S**: entrada `DAT_0012C384` stride 4 B @0x6DF6B0: `[+1]=level`; se level==0 → `[+0]=0,[+2]=0`; senão `[+0]= (level>=12)`, e se >=12 `level-=10`; `[+2]=u16 id`. `DAT_0012C384++`.
+- `0x2A16A` linha **MODE**: `mode_start[DAT_0012C388]` (u16, stride 4 @0x6E1638) = `DAT_0012C384`; `DAT_0012C388++` (cap 9). Fim: `mode_len[i]=start[i+1]-start[i]` (@0x6E163A).
+(Quais das 3 strings 0xFC570 compara cada handler ainda não foi lido dos bytes; atribuição T/S/MODE é pela forma dos handlers.)
+
+### Loader de step `0x21361` (C)
+`sprintf(path,"STEP\%s", DAT_003D585A /*nome*/)` → fopen → 3 freads (header; ver NOT_FORMAT.md) → fclose → `0x21251` (decifra+expande) → varre 0x800 linhas×10 cols trocando '1'→'9'. Falha: `0x266C0("fail %s %s")`.
+Strings de recursos: `AUDIO\%03d.AUD`, `AUDIO\D%03d.AUD`, `BGA\%03d.DAT`, `T%03d`(+.PNZ em TITLE), `.\cap\p5_%03d.TGA` (screenshots), `font.tga`, `event.tga`, `BAR01.TGA`, `CD01.TGA`.
+Formatos de dados em disco: `.NOT` (steps), `.AUD`, `.DAT` (BGA, + BGA_extracted/ já extraído), `.PNZ` (TITLE; provável PNG comprimido — build embute libpng/zlib).
+
+---
