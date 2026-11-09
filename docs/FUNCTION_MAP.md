@@ -262,3 +262,10 @@ SDL2+OpenGL 1.x. `PiuReconstructed.exe`/`jogar.bat`. Seleção (STAGE.CFG + TITL
 - AUDIO\001/002/003.AUD = MP3 128 kbps de 18,2 s / 29,2 s / 36,3 s (musicas de tela, nao SFX). FUN_28843 (ajuda, estado 0x17) toca 003 (MOV EAX,3 antes de 0x29263) -> 003 = musica da ajuda. 001 provavelmente intro (FUN_28442 passa o id em EAX; nao confirmado).
 - Menu de service do EXE (strings @0x1056065): "SOUND TEST", "EFFECT SOUND", "DEMO SOUND", "AUDIO" -> existe opcao de efeito sonoro, mas a fonte do som nao esta em arquivo nem embutida de forma detectavel.
 - Conclusao: nenhum SFX em arquivo ou embutido foi encontrado. Hipotese (nao confirmada): efeitos vinham de hardware de som do gabinete arcade.
+
+## Atualizacao 17 - SFX: sao de HARDWARE (placa de som), nao de arquivo [observado + inferido]
+- FUN_00030fac(EAX=on/off, EDX=idx, EBX=voz) = "toca efeito": grava um descritor de 16 bytes (tabela @0x7238A0 + idx*16) em registradores de um chip de som via porta [0x724AB8] (FUN_00030085 = escrita em porta; pares endereco/dado em base+0..3, +0x20..23, +0x40..43, +0x60..63) e termina com key-on (reg1 | 0x80).
+- Chamadores confirmados: moeda (FUN_00020424: FUN_30fac), selecao fase 2 (FUN_2bd93: mover item e confirmar), entre outros.
+- Init: FUN_00028297 = init do chip (27cd4/27b2a, espera 500 ms, detecta com FUN_3037c) e entao FUN_3155e le PIU.BIN em registros de 16 bytes (tamanho>>4 = 35) para a tabela de vozes, depois FUN_30fa5.
+- PIU.BIN (560 bytes) = 35 descritores de voz (enderecos encadeados: o fim de um = inicio do proximo) -> o PCM em si NAO esta em arquivo nem no EXE: fica na ROM da placa de som arcade.
+- Conclusao: nao existem WAVs desta versao para extrair; os 35 efeitos so podem ser substituidos por amostras externas.
