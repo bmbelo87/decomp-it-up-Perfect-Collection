@@ -854,6 +854,7 @@ static void mode_press(int d)      /* DAT_00153718 bits: 8 -> dir 0, 0x10 -> dir
 {
     if (g_m_anim > 3) { g_m_prev = g_m_dir; g_m_dir = d; g_m_anim = 0; sfx_play(SFX_MOVE, 4); }
 }
+static void mode_confirm(void) { if (g_m_dir != 1) g_m_dir = 0; g_m_prev = g_m_dir; }   /* centro: confirma o item apontado (padrao: o da esquerda) */
 static int mode_to_sel(int dir)    /* 0x2C328 / 0x2C3DA: item (dir + cur) -> DAT_006E1778 */
 {
     switch (dir + g_m_cur) { case 0: return ((g_sflag & 3) == 3) ? 5 : 4; case 1: return 1; case 2: return 2; case 3: return 3; case 4: return 6; }
@@ -1055,11 +1056,11 @@ int main(int argc, char **argv)
                     else if (k == SDLK_KP_5 || k == SDLK_5 || k == SDLK_KP_ENTER || k == SDLK_KP_PLUS) g_start2 = 1;   /* centro do P2 = Num 5 */
                 } else if (g_state == S_MODE) {
                     if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); g_state = S_IDLE; }
-                    else if (k == SDLK_LEFT || k == SDLK_q || k == SDLK_KP_7 || k == SDLK_7) mode_press(2);          /* rola para a esquerda (bit 1) */
-                    else if (k == SDLK_RIGHT || k == SDLK_e || k == SDLK_KP_9 || k == SDLK_9) mode_press(3);         /* rola para a direita (bit 2) */
-                    else if (k == SDLK_z || k == SDLK_UP || k == SDLK_KP_1 || k == SDLK_1) mode_press(0);            /* escolhe o item da esquerda (bit 8) */
-                    else if (k == SDLK_c || k == SDLK_DOWN || k == SDLK_KP_3 || k == SDLK_3) mode_press(1);          /* escolhe o item da direita (bit 0x10) */
-                    else if (k == SDLK_RETURN || k == SDLK_s || k == SDLK_SPACE || k == SDLK_KP_5 || k == SDLK_5) mode_press(g_m_dir == 1 ? 1 : 0);
+                    else if (k == SDLK_LEFT || k == SDLK_z || k == SDLK_KP_1 || k == SDLK_1) mode_press(2);    /* azul esquerdo (Z / P2 1): lista para a esquerda */
+                    else if (k == SDLK_RIGHT || k == SDLK_c || k == SDLK_KP_3 || k == SDLK_3) mode_press(3);   /* azul direito (C / P2 3): lista para a direita */
+                    else if (k == SDLK_q || k == SDLK_UP || k == SDLK_KP_7 || k == SDLK_7) mode_press(0);      /* aponta o item da esquerda */
+                    else if (k == SDLK_e || k == SDLK_DOWN || k == SDLK_KP_9 || k == SDLK_9) mode_press(1);    /* aponta o item da direita */
+                    else if (k == SDLK_s || k == SDLK_RETURN || k == SDLK_SPACE || k == SDLK_KP_5 || k == SDLK_5) mode_confirm();   /* amarelo (centro): entra */
                 } else if (g_state == S_SELECT) {
                     int dl[7], nd = diffs_avail(g_songs[g_sel].id, dl);
                     if (k == SDLK_ESCAPE) { music_stop(); g_state = S_IDLE; }
