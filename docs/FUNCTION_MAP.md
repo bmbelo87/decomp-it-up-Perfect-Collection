@@ -235,3 +235,12 @@ SDL2+OpenGL 1.x. `PiuReconstructed.exe`/`jogar.bat`. Seleção (STAGE.CFG + TITL
 - Texto do titulo: printf("%d%02d",3,0x34) em (601,458) preto e (600,459) branco = "352" (versao). Overlay FUN_20134: CREDIT(S)/INSERT COIN(S)/PRESS CENTER STEP da FONT.PNG (00.DAT), alpha pisca |(t%200-100)*0.01|+0.2 (floats em 0x12000C/0x120010). Posicoes na tela: INFERIDAS.
 - Moeda: FUN_20424 (bit 0x20000 do input, estado != 0x1D): DAT_00153730++. ESC (0x100) -> estado 0. Alt+X sai.
 - Pendente: FUN_2D14D (demo/ranking), selecao real 0x2D0BF, tela 03.DAT, 83.DAT/84.DAT, setup 0x2E46A, resultado real.
+
+## Atualizacao 14 - selecao real (estado 0xB, FUN_0002D0BF) - ANALISE PARCIAL
+- Sub-maquina DAT_006E1798 (0..7): 0 init FUN_2BB5E (carrega BGA\099.DAT, toca AUDIO\%03d.AUD via FUN_29263), 1 intro FUN_2BC14, 2 selecao FUN_2BD93, 3 FUN_2C4AB, 4 FUN_2C63F (BGA\098.DAT), 5 FUN_2C81C, 6 FUN_2C840 (grande), 7 FUN_2CDFA. Fases 2 e 6 chamam FUN_2CFC2/FUN_2ABDA.
+- BGA/099.DAT = tela "Music Select" (titulo, TIME, trilhos, botoes SHIFT, "1P/2P PLAYER PRESS CENTER STEP TO JOIN"); 99.DAT/98.DAT = menu_bg + botoes de modo (czp, btlp, dbp, ezp, hdp...); 091..096.DAT = botoes por nivel (NB/HB/...); 090/091(2 digitos).DAT = barras de titulo (BARnn.PNG = folhas 256x256 com 8 barras, CDnn.PNG = capas redondas).
+- Ordem das barras: por id de musica, so para musicas que tem barra (BAR01 = 109..115,201; BAR02 = 202..210...). Mapeamento exato id->(folha,linha) NAO confirmado.
+- STAGE.CFG tem secoes "MODE EASY ..." com linhas "S nivel id" separadas por linha em branco (paginas) - o original usa isso para as listas.
+- Lista horizontal com passo 0x42 (66 px) em FUN_2BD93; timer de selecao 0x1E - (FUN_2057F/0xF0) (30 s); teclas por jogador: bits 8/0x10/1/2 = esq/dir/..., modo em DAT_006E1778 (1..6 -> flags 0x10,0x20,0x100,0x80,0x40,0x400 em DAT_0012B028).
+- 83.DAT = BGA da tela de jogo (ctx2, bar, t_perf/t_great/t_good/t_bad/t_miss/t_combo, ngb, lin; 0..2790 quadros); 84.DAT = ending; 03.DAT = tela de ajuda (1935 quadros).
+- Ferramenta: piu.exe -view <nome> -frame N -selftest 1 -shot x.ppm renderiza qualquer BGA.
