@@ -215,3 +215,9 @@ SPR/SP2 (texto, CRLF): "TYPE <TILE|ANI|PATTERN a w h|IMAGE>" / "NUM n" (2 arquiv
 Em aberto: u32 @obj+8/@obj+0 do header BGA, ligacao BGA<->tempo da musica, parametro a do PATTERN, font.tga/event.tga.
 
 
+## Atualização 11 — Esqueleto C (src/)
+- `src/piu.h` API; `piu_data.c` (Adler-32, cifras, RES, .NOT, .BGA, interpolação 0x25FA5); `piu_play.c` (relógio 240 Hz, linha atual, janelas por BPM, classify, apply_judgment); `piu_key.h` (KEY 1024 B extraída do exe); `main_test.c` (`build/piu_test.exe ../game`).
+- Validação: AUD 213/213, PNZ 109/109, DAT 117/117 (todas as entradas e .BGA), NOT 472/472. Autoplay 101_DB (bpm 146.1, N=2): janelas P/G/Go/B = 7/12/18/23 px; 92 notas; erro 0 e 6 => 92 Perfect; erro 20 => mistura (P37 G18 Go29 B8).
+- Pendente p/ fidelidade: vida inicial/limites (0x23A4B), `[0x3D0BE0]` (modifier de life_rate; -700 setado em 0x24B2D..), calculo de pontuacao final, hold/long notes (mask colunas 10-12?), tela de resultado, Glide->OpenGL, SDL2 + janela, audio MP3, input.
+
+
