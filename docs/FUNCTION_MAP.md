@@ -307,3 +307,8 @@ SDL2+OpenGL 1.x. `PiuReconstructed.exe`/`jogar.bat`. Seleção (STAGE.CFG + TITL
 ## Atualizacao 22 - teclas e bits do pad (ELF Linux `piu`) [observado]
 - ELF: player1keys @0x081134E0 = Q,E,S,Z,C (GLFW 0x51,0x45,0x53,0x5A,0x43) -> bits 0..4 do pad (io_input_kbd_p1: `esi ^= 1<<i`); player2keys @0x081134CC = KP7,KP9,KP5,KP1,KP3 (0x147,0x149,0x145,0x141,0x143). serviceKeys G,H,J (+K, L no P2) ligam bits de service/coin (0x200, 0x4000, 0x8000, 0x400).
 - CORRECAO: a tabela de teclas do ELF e do PORTE, nao dos bits do DOS (nao serve para inferir a ordem dos bits). Pela observacao do usuario na tela de modo: bits 1/2 = baixo-esq/baixo-dir (Z/C) rolam a lista (dir 2/3); bits 8/0x10 = cima-esq/cima-dir (Q/E) selecionam cur+0/cur+1 (dir 0/1) e repetir o mesmo confirma. Ordem dos bits do pad no DOS: 1=DL 2=DR 4=centro 8=UL 0x10=UR (inferido). O centro (S) nao e testado nessa tela.
+
+## Atualizacao 23 - interpolacao de camadas BGA: o pivo NAO e interpolado [observado]
+- FUN_00025FA5 (0x260D9..0x2624F): entre as chaves i-1 e i interpola so x, y, escala, rotacao e cor r,g,b,a (FUN_25F88 = lerp); o pivo (px,py, +0xC/+0x10) vem da chave anterior, sem interpolar. Matriz: translate(0,480), translate(x,-y), translate(px,-py), rotate, scale, translate(-px,py), translate(0,-480) = y para cima, equivalente ao y para baixo usado em game.c.
+- Efeito: o anel de zoom/fade das bolinhas SHIFT (099.BGA camadas 0x1C e 0x1F, m09_1/m09_2.SPR, 1,0 -> 1,2 com alfa 1 -> 0, pivo (135,392)) saia do lugar porque o pivo da ultima chave (0,0, inativa) era interpolado.
+- piu_data.c: piu_bga_eval passa a usar o pivo da chave anterior.

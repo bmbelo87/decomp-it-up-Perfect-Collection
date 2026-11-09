@@ -196,7 +196,7 @@ int piu_bga_eval(const PiuBgaLayer *l, int f, PiuBgaKey *out)               /* 0
         float t = (float)(f - p->time) / (float)(c->time - p->time);
         out->time = (int16_t)f; out->active = p->active;
         out->x = lerpf(p->x, c->x, t);       out->y = lerpf(p->y, c->y, t);
-        out->px = lerpf(p->px, c->px, t);    out->py = lerpf(p->py, c->py, t);
+        out->px = p->px;                     out->py = p->py;       /* 0x260D9..: o pivo NAO e interpolado (usa o da chave anterior) */
         out->scale = lerpf(p->scale, c->scale, t); out->rot = lerpf(p->rot, c->rot, t);
         out->r = lerpf(p->r, c->r, t);       out->g = lerpf(p->g, c->g, t);
         out->b = lerpf(p->b, c->b, t);       out->a = lerpf(p->a, c->a, t);
