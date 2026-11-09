@@ -982,8 +982,8 @@ static int key_to_col(SDL_Keycode k, int dbl)
 {
     switch (k) {
     case SDLK_z: return 0; case SDLK_q: return 1; case SDLK_s: return 2; case SDLK_e: return 3; case SDLK_c: return 4;
-    case SDLK_KP_1: return dbl ? 5 : 0; case SDLK_KP_7: return dbl ? 6 : 1; case SDLK_KP_5: return dbl ? 7 : 2;
-    case SDLK_KP_9: return dbl ? 8 : 3; case SDLK_KP_3: return dbl ? 9 : 4;
+    case SDLK_KP_1: case SDLK_1: return dbl ? 5 : 0; case SDLK_KP_7: case SDLK_7: return dbl ? 6 : 1; case SDLK_KP_5: case SDLK_5: return dbl ? 7 : 2;
+    case SDLK_KP_9: case SDLK_9: return dbl ? 8 : 3; case SDLK_KP_3: case SDLK_3: return dbl ? 9 : 4;   /* P2: 1 7 5 9 3 (fileira de cima ou numpad) */
     }
     return -1;
 }
@@ -1047,19 +1047,19 @@ int main(int argc, char **argv)
                 if (k == SDLK_F1) { if (!g_service) svc_open(); else svc_press(0, 1); g_svio |= 2; }       /* SERVICE (0x20000) */
                 else if (k == SDLK_F2) { if (g_service) svc_press(1, 0); g_svio |= 1; }                      /* TEST (0x10000) */
                 else if (k == SDLK_F3) { g_coins = 0; g_svio |= 4; }
-                else if (k == SDLK_F4 || k == SDLK_F5 || (k == SDLK_5 && g_state != S_SELECT)) { if (!g_freeplay) { g_coins++; sfx_play(SFX_COIN, 0); } g_svio |= 8; }   /* 0x20470: FUN_30fac idx 0x15 */   /* 0x20424: moeda */
+                else if (k == SDLK_F4 || k == SDLK_F5 || (0 /* '5' agora e centro do P2 */)) { if (!g_freeplay) { g_coins++; sfx_play(SFX_COIN, 0); } g_svio |= 8; }   /* 0x20470: FUN_30fac idx 0x15 */   /* 0x20424: moeda */
                 if (g_service) { if (k == SDLK_ESCAPE) g_service = 0; continue; }
                 if (g_state >= S_IDLE) {
                     if (k == SDLK_ESCAPE) { bga_unload(&g_ab); g_state = S_IDLE; }     /* 0x20F37: ESC -> estado 0 */
                     else if (k == SDLK_s || k == SDLK_RETURN || k == SDLK_SPACE) g_start1 = 1;        /* PRESS CENTER STEP: S = centro do P1 */
-                    else if (k == SDLK_KP_5 || k == SDLK_KP_ENTER || k == SDLK_KP_PLUS) g_start2 = 1;   /* centro do P2 = Num 5 */
+                    else if (k == SDLK_KP_5 || k == SDLK_5 || k == SDLK_KP_ENTER || k == SDLK_KP_PLUS) g_start2 = 1;   /* centro do P2 = Num 5 */
                 } else if (g_state == S_MODE) {
                     if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); g_state = S_IDLE; }
-                    else if (k == SDLK_LEFT || k == SDLK_q || k == SDLK_KP_7) mode_press(2);          /* rola para a esquerda (bit 1) */
-                    else if (k == SDLK_RIGHT || k == SDLK_e || k == SDLK_KP_9) mode_press(3);         /* rola para a direita (bit 2) */
-                    else if (k == SDLK_z || k == SDLK_UP || k == SDLK_KP_1) mode_press(0);            /* escolhe o item da esquerda (bit 8) */
-                    else if (k == SDLK_c || k == SDLK_DOWN || k == SDLK_KP_3) mode_press(1);          /* escolhe o item da direita (bit 0x10) */
-                    else if (k == SDLK_RETURN || k == SDLK_s || k == SDLK_SPACE || k == SDLK_KP_5) mode_press(g_m_dir == 1 ? 1 : 0);
+                    else if (k == SDLK_LEFT || k == SDLK_q || k == SDLK_KP_7 || k == SDLK_7) mode_press(2);          /* rola para a esquerda (bit 1) */
+                    else if (k == SDLK_RIGHT || k == SDLK_e || k == SDLK_KP_9 || k == SDLK_9) mode_press(3);         /* rola para a direita (bit 2) */
+                    else if (k == SDLK_z || k == SDLK_UP || k == SDLK_KP_1 || k == SDLK_1) mode_press(0);            /* escolhe o item da esquerda (bit 8) */
+                    else if (k == SDLK_c || k == SDLK_DOWN || k == SDLK_KP_3 || k == SDLK_3) mode_press(1);          /* escolhe o item da direita (bit 0x10) */
+                    else if (k == SDLK_RETURN || k == SDLK_s || k == SDLK_SPACE || k == SDLK_KP_5 || k == SDLK_5) mode_press(g_m_dir == 1 ? 1 : 0);
                 } else if (g_state == S_SELECT) {
                     int dl[7], nd = diffs_avail(g_songs[g_sel].id, dl);
                     if (k == SDLK_ESCAPE) { music_stop(); g_state = S_IDLE; }
