@@ -441,7 +441,7 @@ static int chart_path(char *out, size_t sz, int id, int d)
 }
 
 /* ------------------------------------------------------------------ jogo */
-enum { S_SELECT, S_PLAY, S_RESULT, S_MODE, S_IDLE, S_LOGO, S_INTRO, S_TITLE, S_VIEW };   /* original: DAT_00153710 = 0 idle, 0xD/0xE logo, 0x10/0x11 intro, 0x13/0x14 title, 0xB selecao */
+enum { S_SELECT, S_PLAY, S_RESULT, S_MODE, S_MCONF, S_IDLE, S_LOGO, S_INTRO, S_TITLE, S_VIEW };   /* original: DAT_00153710 = 0 idle, 0xD/0xE logo, 0x10/0x11 intro, 0x13/0x14 title, 0xB selecao */
 static int g_state = S_IDLE;
 static ResSet g_arrow;       /* BGA/00.DAT */
 static Spr *g_sp541, *g_sp542;
@@ -840,7 +840,7 @@ static const int BAR_TBL[14][8] = {
     { 316, 317, 318, 319, 320, 321, 328, 329 }, { 401, 402, 403, 404, 405, 406, 407, 408 }, { 409, 410, 411, 412, 413, 414, 116, 117 },
     { 118, 119, 219, 220, 221, 223, 224, 224 }, { 225, 322, 323, 324, 325, 326, 330, 327 }, { 415, 501, 502, 503, 504, 505, 506, 507 },
     { 508, 509, 510, 511, 512, 513, 514, 515 }, { 516, 517, 1, 2, 3, 4, 5, 6 } };
-static ResSet g_bars; static int g_bars_ok;
+static ResSet g_bars; static int g_bars_ok; static BgaRun g_ab2;      /* g_ab2: fundo colorido 091..096 da fase seguinte */
 static int g_m_frame, g_m_anim, g_m_dir = -1, g_m_prev = -1, g_m_cur = 1, g_m_sel, g_m_t0;
 static int g_mode_flag;                                     /* DAT_0012B028 |= ... (0x10,0x20,0x100,0x80,0x40,0x400) */
 static int mode_id(int k) { return k == 0 ? (((g_sflag & 3) == 3) ? 1 : 2) : k + 2; }       /* DAT_006E0EE8 >> 16 */
@@ -873,9 +873,19 @@ static void mode_step(void)
     if (!dir01) g_m_dir = 0;
     g_m_sel = mode_to_sel(g_m_dir);
     { static const int F[7] = { 0, 0x10, 0x20, 0x100, 0x80, 0x40, 0x400 }; g_mode_flag |= F[g_m_sel]; }
-    sfx_play(SFX_ENTER, 3);
-    music_stop(); bga_unload(&g_ab); g_state = S_SELECT;           /* fase 3 (lista de musicas): ainda a reconstrucao antiga */
+    sfx_play(SFX_ENTER, 3);                                    /* FUN_2BD93 0x2C4A1: FUN_30FAC idx 4 canal 3 */
+    bga_unload(&g_ab); bga_load_name(&g_ab, "097"); g_m_anim = 0; g_state = S_MCONF;      /* fase 3 (FUN_2C4AB): BGA 097 mostra o modo escolhido */
 }
+static const int MCONF_BASE[7] = { 0, 0, 120, 360, 240, 480, 600 };     /* 0x12CB25: quadro inicial na 097.BGA por DAT_006E1778 */
+static void mconf_step(void)
+{
+    if (++g_m_anim < 0x1e) return;                              /* FUN_2C4AB: ao chegar a 30 quadros: FUN_294B9 e fase 4 */
+    music_stop(); bga_unload(&g_ab); bga_unload(&g_ab2);
+    static const char *const BG[7] = { "091", "091", "092", "094", "093", "095", "096" };      /* FUN_2C63F 0x2C623: modo -> DAT de fundo */
+    bga_load_name(&g_ab, "098"); bga_load_name(&g_ab2, BG[g_m_sel]);
+    g_m_frame = 0; g_state = S_SELECT;                          /* fase 5 = lista de musicas (ainda a reconstrucao antiga, sobre 098 + fundo) */
+}
+static void draw_mconf(void) { bga_draw(&g_ab, g_m_anim + MCONF_BASE[g_m_sel]); }
 static void bar_cell(int id, int hl)                         /* FUN_2AFFF / FUN_2B04E: acha (folha, faixa) na tabela e desenha rotacionado 45 graus */
 {
     for (int r = 0; r < 14; r++) for (int j = 0; j < 8; j++) if (BAR_TBL[r][j] == id) {
@@ -964,7 +974,8 @@ static void draw_select(void)
 {
     Song *s = &g_songs[g_sel]; load_back(s->id);
     glColor4f(1, 1, 1, 1);
-    if (g_backtex.id) quad(&g_backtex, 0, 0, 640, 480, 0, 0, 1, 1); else { glClearColor(0, 0, .15f, 1); glClear(GL_COLOR_BUFFER_BIT); }
+    if (g_ab.ok) { bga_draw(&g_ab2, g_m_frame % 90); bga_draw(&g_ab, g_m_frame < 500 ? g_m_frame : 500); }      /* fundo do modo (09x) + 098 */
+    else if (g_backtex.id) quad(&g_backtex, 0, 0, 640, 480, 0, 0, 1, 1); else { glClearColor(0, 0, .15f, 1); glClear(GL_COLOR_BUFFER_BIT); }
     glDisable(GL_TEXTURE_2D); glColor4f(0, 0, 0, 0.65f); quad(NULL, 0, 330, 640, 150, 0, 0, 0, 0); glColor4f(1, 1, 1, 1);
     int dl[7], nd = diffs_avail(s->id, dl); if (g_dsel >= nd) g_dsel = nd ? nd - 1 : 0;
     textf(20, 340, 3, "%03d %s", s->id, s->title);
@@ -999,7 +1010,7 @@ static void set_view(void)
 
 int main(int argc, char **argv)
 {
-    int mode_start = 0, svc_start = 0, autostart = -1, autodiff = 1, autotest = 0, testsec = 6; const char *shotpath = NULL; int noauto = 0, skip = 0; const char *viewname = NULL;
+    int conf_start = 0, mode_start = 0, svc_start = 0, autostart = -1, autodiff = 1, autotest = 0, testsec = 6; const char *shotpath = NULL; int noauto = 0, skip = 0; const char *viewname = NULL;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-game") && i + 1 < argc) snprintf(g_dir, sizeof g_dir, "%s", argv[++i]);
         else if (!strcmp(argv[i], "-song") && i + 1 < argc) autostart = atoi(argv[++i]);
@@ -1007,6 +1018,7 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "-selftest") && i + 1 < argc) { autotest = 1; testsec = atoi(argv[++i]); }
         else if (!strcmp(argv[i], "-noauto")) noauto = 1;
         else if (!strcmp(argv[i], "-skip")) skip = 1;
+        else if (!strcmp(argv[i], "-conf") && i + 1 < argc) conf_start = atoi(argv[++i]);
         else if (!strcmp(argv[i], "-mode") && i + 1 < argc) mode_start = atoi(argv[++i]);
         else if (!strcmp(argv[i], "-service") && i + 1 < argc) svc_start = atoi(argv[++i]) + 1;
         else if (!strcmp(argv[i], "-view") && i + 1 < argc) viewname = argv[++i];
@@ -1024,7 +1036,8 @@ int main(int argc, char **argv)
     if (!g_win) { logf_("janela: %s\n", SDL_GetError()); return 1; }
     SDL_GLContext ctx = SDL_GL_CreateContext(g_win); SDL_GL_SetSwapInterval(1);
     glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); glDisable(GL_DEPTH_TEST);
-    font_init(); audio_init(); songs_load(); svc_load(); if (mode_start) { g_sflag = mode_start == 2 ? 3 : 1; mode_enter(); }
+    font_init(); audio_init(); songs_load(); svc_load(); if (conf_start) { g_m_sel = conf_start; bga_load_name(&g_ab, "097"); g_m_anim = 0; g_state = S_MCONF; }
+    if (mode_start) { g_sflag = mode_start == 2 ? 3 : 1; mode_enter(); }
     if (svc_start) { svc_open(); g_svs = svc_start - 1; g_svcur = g_svs ? g_svs - 1 : 0; }
     char p[300]; path_of(p, sizeof p, "BGA/00.DAT");
     if (rs_open(&g_arrow, p)) { logf_("BGA/00.DAT nao encontrado em %s\n", g_dir); }
@@ -1054,6 +1067,8 @@ int main(int argc, char **argv)
                     if (k == SDLK_ESCAPE) { bga_unload(&g_ab); g_state = S_IDLE; }     /* 0x20F37: ESC -> estado 0 */
                     else if (k == SDLK_s || k == SDLK_RETURN || k == SDLK_SPACE) g_start1 = 1;        /* PRESS CENTER STEP: S = centro do P1 */
                     else if (k == SDLK_KP_5 || k == SDLK_KP_ENTER || k == SDLK_KP_PLUS) g_start2 = 1;   /* centro do P2 = Num 5 */
+                } else if (g_state == S_MCONF) {
+                    if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); g_state = S_IDLE; }
                 } else if (g_state == S_MODE) {
                     if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); g_state = S_IDLE; }
                     /* PIU.EXE FUN_2BD93: bits 1/2 rolam a lista (dir 2/3), bits 8/0x10 apontam cur+0/cur+1 (dir 0/1; repetir entra); centro nao e lido.
@@ -1066,7 +1081,7 @@ int main(int argc, char **argv)
                     else if (k == SDLK_RETURN || k == SDLK_SPACE) mode_confirm();       /* atalho extra (nao e do original) */
                 } else if (g_state == S_SELECT) {
                     int dl[7], nd = diffs_avail(g_songs[g_sel].id, dl);
-                    if (k == SDLK_ESCAPE) { music_stop(); g_state = S_IDLE; }
+                    if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); bga_unload(&g_ab2); g_state = S_IDLE; }
                     else if (k == SDLK_DOWN) { g_sel = (g_sel + 1) % g_nsongs;  sfx_play(SFX_MOVE, 4); }
                     else if (k == SDLK_UP) { g_sel = (g_sel + g_nsongs - 1) % g_nsongs;  sfx_play(SFX_MOVE, 4); }
                     else if (k == SDLK_RIGHT && nd) { g_dsel = (g_dsel + 1) % nd; sfx_play(SFX_MOVE, 4); }
@@ -1094,10 +1109,10 @@ int main(int argc, char **argv)
             play_update();
         }
         { uint32_t now = SDL_GetTicks(); acc += now - t_prev; t_prev = now; if (acc > 250) acc = 250;
-          while (acc >= 1000.0 / 60.0) { acc -= 1000.0 / 60.0; if (g_state >= S_IDLE) attract_step(); else if (g_state == S_MODE) mode_step(); } }
+          while (acc >= 1000.0 / 60.0) { acc -= 1000.0 / 60.0; if (g_state >= S_IDLE) attract_step(); else if (g_state == S_MODE) mode_step(); else if (g_state == S_MCONF) mconf_step(); else if (g_state == S_SELECT && g_ab.ok) g_m_frame++; } }
         set_view(); glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT); glColor4f(1, 1, 1, 1);
         if (g_state >= S_IDLE) draw_attract();
-        else if (g_state == S_MODE) draw_mode(); else if (g_state == S_SELECT) draw_select(); else if (g_state == S_PLAY) draw_play(); else draw_result();
+        else if (g_state == S_MODE) draw_mode(); else if (g_state == S_MCONF) draw_mconf(); else if (g_state == S_SELECT) draw_select(); else if (g_state == S_PLAY) draw_play(); else draw_result();
         if (g_service) svc_draw();
         if (autotest && shotpath && SDL_GetTicks() + 150 > t_end) {
             uint8_t *px = (uint8_t *)malloc((size_t)g_winw * g_winh * 3); FILE *f = fopen(shotpath, "wb");
