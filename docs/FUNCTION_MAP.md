@@ -254,3 +254,11 @@ SDL2+OpenGL 1.x. `PiuReconstructed.exe`/`jogar.bat`. Seleção (STAGE.CFG + TITL
   - Confirma: bits em DAT_0012b028 |= 0x10(modo1) 0x20(2) 0x100(3) 0x80(4) 0x40(5) 0x400(6); DAT_006e1798=3 (proxima fase).
   - Timer: 30 s (0x1e - tempo/0xF0) -> auto-confirma o item atual.
 - Conclusao: a ordem real e 099 -> escolha de MODO -> (fase 3) musica. A lista de musicas so vem na fase 3.
+
+## Atualizacao 16 - busca de SFX no PIU.EXE (resultado negativo parcial)
+- PIU.EXE: 0 ocorrencias de RIFF/WAVE/fmt/.WAV/VOC/ID3/OggS; sem bloco PCM (entropia de codigo ~6 ate 0xF0000, depois dados baixos).
+- Unicos formatos de arquivo carregados: AUDIO\%03d.AUD (0x120336) e AUDIO\D%03d.AUD (0x120345) via FUN_00029263 (so monta o nome; id em EAX), BGA\*.DAT (SPR/PNG/BGA/SP2).
+- BGA\*.DAT (234 DATs/entradas): so .SPR .PNG .BGA .SP2 -> nenhum audio dentro.
+- AUDIO\001/002/003.AUD = MP3 128 kbps de 18,2 s / 29,2 s / 36,3 s (musicas de tela, nao SFX). FUN_28843 (ajuda, estado 0x17) toca 003 (MOV EAX,3 antes de 0x29263) -> 003 = musica da ajuda. 001 provavelmente intro (FUN_28442 passa o id em EAX; nao confirmado).
+- Menu de service do EXE (strings @0x1056065): "SOUND TEST", "EFFECT SOUND", "DEMO SOUND", "AUDIO" -> existe opcao de efeito sonoro, mas a fonte do som nao esta em arquivo nem embutida de forma detectavel.
+- Conclusao: nenhum SFX em arquivo ou embutido foi encontrado. Hipotese (nao confirmada): efeitos vinham de hardware de som do gabinete arcade.
