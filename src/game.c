@@ -958,13 +958,33 @@ static const int CD_TBL[26][4] = {
     { 513, 514, 515, 516 }, { 517, 0, 0, 0 } };
 static int g_w_list[256], g_w_n, g_w_pos, g_w_sec;
 static int w_song(int k);
+static void wheel_list(void);
 static int w_idx(int k) { return g_w_n ? (((g_w_pos + k) % g_w_n) + g_w_n) % g_w_n : 0; }      /* FUN_2B09D: indice circular */
+static void wheel_list(void)                                 /* FUN_2B70B: copia a secao g_w_sec do STAGE.CFG para a lista da roda */
+{
+    g_w_n = 0; for (int i = 0; i < g_nsec[g_w_sec] && g_w_n < 256; i++) if (g_sec[g_w_sec][i].song >= 0) g_w_list[g_w_n++] = i;
+}
+/* Codigos secretos (ELF piu: func_2a72b = FUN_2A72B, chamada por FUN_2B958 a cada toque do pad): as 8 ultimas teclas (bits 1 DL, 2 DR, 4 centro, 8 UL, 0x10 UR)
+ * sao comparadas com 15 sequencias (tabela 0x81219AA do ELF / DOS equivalente). Com o modo REMIX ligado (flag 0x100):
+ *   DL UL DL C UR DR UR C   (func_2a88a) e so 1 jogador  -> REMIXDB (flag 0x200, secao 4)
+ *   C DL C DR C DL C DR     (func_2a8c4) e fase 6 (roda) -> REMIXCZ (flag 0x800, secao 6) */
+static uint8_t g_hist[8];
+static void wheel_code(int bit)
+{
+    memmove(g_hist, g_hist + 1, 7); g_hist[7] = (uint8_t)bit;
+    static const uint8_t DB[8] = { 1, 8, 1, 4, 0x10, 2, 0x10, 4 }, CZ[8] = { 4, 1, 4, 2, 4, 1, 4, 2 };
+    if (g_m_sel != 3) return;                  /* so com REMIX */
+    int to = -1;
+    if (!memcmp(g_hist, DB, 8) && (g_sflag & 3) != 3) to = 4; else if (!memcmp(g_hist, CZ, 8)) to = 6;
+    if (to >= 0) { g_w_sec = to; wheel_list(); memset(g_hist, 0, 8); }
+}
 static void wheel_enter(void)
 {
+    memset(g_hist, 0, 8);
     /* FUN_2C63F: DAT_006E1784 = secao do STAGE.CFG pelo modo (flags 0x10 EASY, 0x20 HARD, 0x80 DOUBLE, 0x100 REMIX, 0x400 CRAZY; BATTLE 0x40 depende de DAT_0012B024: 0 EASY)
      * REMIXDB (0x200) e REMIXCZ (0x800) existem no codigo mas quem liga essas flags nao foi achado: inferido = REMIX jogado em double / crazy. */
     { static const int SECOF[7] = { 0, 0, 1, 3, 2, 0, 5 }; g_w_sec = SECOF[g_m_sel]; }
-    g_w_n = 0; for (int i = 0; i < g_nsec[g_w_sec] && g_w_n < 256; i++) if (g_sec[g_w_sec][i].song >= 0) g_w_list[g_w_n++] = i;
+    wheel_list();
     g_w_pos = 0; g_m_frame = g_m_anim = 0; g_m_dir = g_m_prev = -1; g_m_t0 = 0; g_state = S_WHEEL;     /* 0x2C63F: 17A4=0, 1794=1788=-1, 179C=0, fase 5 */
 }
 static int w_song(int k) { return g_sec[g_w_sec][g_w_list[w_idx(k)]].song; }
@@ -1179,6 +1199,10 @@ int main(int argc, char **argv)
                     if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); g_state = S_IDLE; }
                 } else if (g_state == S_WHEEL) {
                     if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); bga_unload(&g_ab2); g_state = S_IDLE; }
+                    else if (k == SDLK_s || k == SDLK_KP_5) wheel_code(4);
+                    if (k == SDLK_z || k == SDLK_KP_1) wheel_code(1); else if (k == SDLK_c || k == SDLK_KP_3) wheel_code(2);
+                    else if (k == SDLK_q || k == SDLK_KP_7) wheel_code(8); else if (k == SDLK_e || k == SDLK_KP_9) wheel_code(0x10);
+                    if (k == SDLK_ESCAPE) {}
                     else if (k == SDLK_z || k == SDLK_KP_1 || k == SDLK_LEFT) mode_press(2);        /* mesmas teclas da escolha de modo */
                     else if (k == SDLK_c || k == SDLK_KP_3 || k == SDLK_RIGHT) mode_press(3);
                     else if (k == SDLK_q || k == SDLK_KP_7) mode_press(0);
