@@ -6,8 +6,10 @@ Como jogar: dê dois cliques em `jogar.bat` (usa a pasta `..\game`). Ou: `PiuRec
 | | |
 |---|---|
 | Seleção | Cima/Baixo música (PgUp/PgDn ±10), Esquerda/Direita nível, **Enter** jogar, **1–8** velocidade, **Esc** sair, F11 tela cheia |
-| P1 (5 pads) | `Z` ↙, `Q` ↖, `S` centro, `E` ↗, `C` ↘ |
-| P2 / Double | Numpad `1` ↙, `7` ↖, `5` centro, `9` ↗, `3` ↘ (em fases single o numpad também joga as 5 colunas) |
+| P1 (5 pads) | `Z` ↙, `Q` ↖, `S` **centro**, `E` ↗, `C` ↘ |
+| P2 / Double | Numpad `1` ↙, `7` ↖, `5` **centro**, `9` ↗, `3` ↘ (em fases single o numpad também joga as 5 colunas) |
+| Título | `S` (ou Enter/Espaço) = START P1 (PRESS CENTER STEP), Num `5` (ou Num Enter/Num +) = START P2 |
+| Escolha de modo | `Q`/`E` (ou ←/→, Num 7/9) rolam; `Z`/`C` (ou ↑/↓, Num 1/3) escolhem; apertar o mesmo duas vezes (ou `S`/Enter/Num 5) confirma |
 | Em jogo | Esc volta à seleção |
 | Arcade | **F1** SERVICE (abre o menu de serviço e seleciona), **F2** TEST (move), **F3** Coin Clear, **F4** moeda (5/F5 também), Alt+X sai |
 
