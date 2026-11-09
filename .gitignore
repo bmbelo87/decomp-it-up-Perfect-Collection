@@ -1,0 +1,11 @@
+build/
+build_msvc/
+objs/
+objs_fixed/
+piu_flat_0x10000.bin
+piu_le.exe
+scratch/
+__pycache__/
+*.exe
+*.ppm
+include/
