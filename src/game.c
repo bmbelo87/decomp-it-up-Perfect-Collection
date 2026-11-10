@@ -524,12 +524,33 @@ static void judge_grade(int p, int g)
     g_lg[p] = g; g_lgt[p] = SDL_GetTicks();
 }
 static int g_pos_cache, g_slot_cache;
+/* Codigos (modifiers): palavras de flags por jogador (ELF 0x83CAEAA P1 / 0x83C62C6 P2) e flags de modo altas (0x81206D2 bits 0x1000 SYNCHRO, 0x2000 COUPLE, 0x4000 UNION).
+ * Persistem durante o credito (zerados no fim de jogo/atract); o codigo 55555555 zera tudo. Bits por jogador: 0x02 2X, 0x04 4X, 0x08 8X, 0x10 VANISH, 0x20 MIRROR, 0x40 RANDOM VELOCITY,
+ * 0x80 NONSTEP, 0x100 RANDOM VANISH, 0x200 RANDOM STEP (nomes pela lista do usuario; confirmado so o desvio de bits no ELF). */
+static int g_mod[2], g_mfx;
+static void mods_clear(void) { g_mod[0] = g_mod[1] = 0; g_mfx = 0; }
 static int g_w_sec, g_m_sel;
 static void start_song(int di)
 {
     Song *s = &g_songs[g_sel]; char p[300];
     if (!chart_path(p, sizeof p, s->id, di) || piu_chart_load(p, &g_chart)) return;
     logf_("start_song: musica %d passo %s (%s) sflag=%d modo=%d secao=%d\n", s->id, DIFFS[di], p, g_sflag, g_m_sel, g_w_sec);
+    {   /* efeitos dos codigos: velocidade 2X/4X/8X e MIRROR (inverte as colunas de cada metade; double inverte as 10). Demais ainda nao aplicados. */
+        int pl = ((g_sflag & 3) == 2) ? 1 : 0, m = g_mod[pl];
+        if (m & 2) g_speed = 2; else if (m & 4) g_speed = 4; else if (m & 8) g_speed = 8;
+        for (int h = 0; h < 2; h++) {
+            int mm = (di >= 3 && di <= 5) ? g_mod[h] : m;
+            if (!(mm & 0x20)) continue;
+            int dbl = di == 6;
+            if (dbl && h) break;
+            if (!dbl && !(di >= 3 && di <= 5) && h) break;
+            for (int r = 0; r < PIU_ROWS; r++) {
+                uint8_t *c = g_chart.cell + r * PIU_ROWSTRIDE;
+                if (dbl) { for (int i = 0; i < 5; i++) { uint8_t t = c[i]; c[i] = c[9 - i]; c[9 - i] = t; } }
+                else { uint8_t *q = c + h * 5; uint8_t t = q[0]; q[0] = q[4]; q[4] = t; t = q[1]; q[1] = q[3]; q[3] = t; }
+            }
+        }
+    }
     g_song = s->id; g_diff = di; g_dbl = di == 6; g_two = di >= 3 && di <= 5;      /* DB = double (1 jogador, 10 colunas); E2/H2/H4 = couple */
     /* (antes: notas nas colunas 5-9 ligavam g_dbl. Errado: 514_H1/403_H1/505_H3 trazem as duas metades e o jogo de 1 jogador so usa as colunas 0-4.) */
     memset(g_ps, 0, sizeof g_ps);
@@ -597,7 +618,7 @@ static void end_step(void)
     case PH_FAIL: if (c > 180) end_over(); break;
     case PH_BREAK: if (c > 240) end_over(); break;
     case PH_CLEAR: if (c > 240) { g_ph = PH_RESULT; g_pc = 0; } break;
-    case PH_OVER: if (c > 120) { g_stage = 0; g_sflag = 0; goto_idle(); } break;
+    case PH_OVER: if (c > 120) { g_stage = 0; g_sflag = 0; mods_clear(); goto_idle(); } break;
     case PH_RESULT:
         if (c >= 30 && c <= 55 && c % 5 == 0) sfx_play(8, 1);                    /* 0x25D82: idx 8 canal 1 a cada numero */
         if (c == 70) sfx_play(9, 2);                                              /* aparece a nota: idx 9 canal 2 */
@@ -837,7 +858,7 @@ static void enter_title(void)                                                   
 {
     music_stop();
     bga_unload(&g_ab); bga_load_name(&g_ab, "82");
-    g_cnt = 0; g_scnt = 0; g_sflag = 0; g_stage = 0; g_state = S_TITLE;
+    g_cnt = 0; g_scnt = 0; g_sflag = 0; g_stage = 0; mods_clear(); g_state = S_TITLE;
 }
 static void mode_enter(void);
 static void enter_select(void) { music_stop(); mode_enter(); if (music_load(2)) music_start(); }   /* 0x2BB5E: FUN_294B9 + AUDIO\002.AUD incondicional + BGA 099 */
@@ -1239,19 +1260,52 @@ static void wheel_list(void)                                 /* FUN_2B70B: copia
  * sao comparadas com 15 sequencias (tabela 0x81219AA do ELF / DOS equivalente). Com o modo REMIX ligado (flag 0x100):
  *   DL UL DL C UR DR UR C   (func_2a88a) e so 1 jogador  -> REMIXDB (flag 0x200, secao 4)
  *   C DL C DR C DL C DR     (func_2a8c4) e fase 6 (roda) -> REMIXCZ (flag 0x800, secao 6) */
-static uint8_t g_hist[8];
-static void wheel_code(int bit)
+static uint8_t g_hist[2][8];
+static void wheel_enter(void);
+static void code_press(int pl, int bit)                          /* FUN_2A72B (P1) / FUN_2A973 (P2): tabela 0x81219AA, 16 x 8 teclas */
 {
-    memmove(g_hist, g_hist + 1, 7); g_hist[7] = (uint8_t)bit;
-    static const uint8_t DB[8] = { 1, 8, 1, 4, 0x10, 2, 0x10, 4 }, CZ[8] = { 4, 1, 4, 2, 4, 1, 4, 2 };
-    if (g_m_sel != 3) return;                  /* so com REMIX */
-    int to = -1;
-    if (!memcmp(g_hist, DB, 8) && (g_sflag & 3) != 3) to = 4; else if (!memcmp(g_hist, CZ, 8)) to = 6;
-    if (to >= 0) { g_w_sec = to; wheel_list(); memset(g_hist, 0, 8); }
+    static const uint8_t T[16][8] = {                            /* DL=1 DR=2 C=4 UL=8 UR=0x10 */
+        {4,4,4,4,4,4,4,4}, {4,4,0x10,8,4,2,1,4}, {4,4,1,4,0x10,2,4,8}, {4,4,1,4,2,4,4,4}, {4,4,2,4,4,8,4,4}, {4,4,8,4,4,4,0x10,4},
+        {4,1,4,2,4,0x10,4,8}, {8,0x10,4,8,0x10,4,8,0x10}, {4,4,8,0x10,8,0x10,4,4}, {4,4,0x10,8,0x10,8,4,4}, {1,2,4,8,2,1,4,0x10},
+        {8,0x10,4,1,2,4,8,0x10}, {8,0x10,2,4,1,4,2,1}, {1,8,1,4,0x10,2,0x10,4}, {4,1,4,2,4,1,4,2}, {0x10,4,1,0x10,8,4,2,8} };
+    uint8_t *h = g_hist[pl]; memmove(h, h + 1, 7); h[7] = (uint8_t)bit;
+    int m0 = g_mod[pl], f0 = g_mfx, k;
+    for (k = 0; k < 16; k++) if (!memcmp(h, T[k], 8)) break;
+    if (k > 14) return;
+    int *m = &g_mod[pl];
+    switch (k) {
+    case 0: g_mfx = 0; *m = 0; break;                                                  /* cancelar */
+    case 1: *m &= ~0x100; *m ^= 0x10; break;                                           /* 0x2A79D */
+    case 2: *m ^= 0x20; break;
+    case 3: *m &= ~0x206; *m ^= 8; break;
+    case 4: *m &= ~0x20a; *m ^= 4; break;
+    case 5: *m &= ~0x20c; *m ^= 2; break;
+    case 6: *m &= ~0x100; *m ^= 0x40; break;
+    case 7: *m ^= 0x80; break;
+    case 8: g_mfx &= ~0x2000; g_mfx ^= 0x1000; break;
+    case 9: g_mfx &= ~0x1000; g_mfx ^= 0x2000; break;
+    case 10: g_mfx ^= 0x4000; break;
+    case 11: *m &= ~0x50; *m ^= 0x100; break;
+    case 12: *m &= ~0x0e; *m ^= 0x200; break;
+    case 13: case 14:                                                                  /* so com REMIX (flag 0x100), na roda de musicas */
+        if (g_state != S_WHEEL || g_m_sel != 3) break;
+        if (k == 13 && (g_sflag & 3) != 3) { g_w_sec = 4; wheel_list(); sfx_play(1, 2); }
+        else if (k == 14) { g_w_sec = 6; wheel_list(); sfx_play(1, 2); }
+        break;
+    }
+    memset(h, 0, 8);                                                                   /* FUN_2A6C9 */
+    if (*m != m0 || g_mfx != f0) sfx_play(1, 2);                                       /* 0x2A91B: ac_sound_play_effect(0,2,1) -> idx 1 canal 2 (inferido) */
+}
+static void code_key(int k)                                      /* teclas do pad -> bits; letras = P1, teclado numerico = P2 */
+{
+    int pl = (k >= SDLK_KP_1 && k <= SDLK_KP_9) ? 1 : 0, b = 0;
+    if (k == SDLK_z || k == SDLK_KP_1) b = 1; else if (k == SDLK_c || k == SDLK_KP_3) b = 2; else if (k == SDLK_s || k == SDLK_KP_5) b = 4;
+    else if (k == SDLK_q || k == SDLK_KP_7) b = 8; else if (k == SDLK_e || k == SDLK_KP_9) b = 0x10;
+    if (b && (g_sflag >> pl & 1)) code_press(pl, b);                     /* so jogador que entrou */
 }
 static void wheel_enter(void)
 {
-    memset(g_hist, 0, 8);
+    memset(g_hist, 0, sizeof g_hist);
     /* FUN_2C63F: DAT_006E1784 = secao do STAGE.CFG pelo modo (flags 0x10 EASY, 0x20 HARD, 0x80 DOUBLE, 0x100 REMIX, 0x400 CRAZY; BATTLE 0x40 depende de DAT_0012B024: 0 EASY)
      * REMIXDB (0x200) e REMIXCZ (0x800) existem no codigo mas quem liga essas flags nao foi achado: inferido = REMIX jogado em double / crazy. */
     { static const int SECOF[7] = { 0, 0, 1, 3, 2, 0, 5 }; g_w_sec = SECOF[g_m_sel]; }
@@ -1501,9 +1555,7 @@ int main(int argc, char **argv)
                     if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); g_state = S_IDLE; }
                 } else if (g_state == S_WHEEL) {
                     if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); bga_unload(&g_ab2); g_state = S_IDLE; }
-                    else if (k == SDLK_s || k == SDLK_KP_5) wheel_code(4);
-                    if (k == SDLK_z || k == SDLK_KP_1) wheel_code(1); else if (k == SDLK_c || k == SDLK_KP_3) wheel_code(2);
-                    else if (k == SDLK_q || k == SDLK_KP_7) wheel_code(8); else if (k == SDLK_e || k == SDLK_KP_9) wheel_code(0x10);
+                    code_key(k);
                     if (k == SDLK_ESCAPE) {}
                     else if (k == SDLK_z || k == SDLK_KP_1 || k == SDLK_LEFT) mode_press(2);        /* mesmas teclas da escolha de modo */
                     else if (k == SDLK_c || k == SDLK_KP_3 || k == SDLK_RIGHT) mode_press(3);
@@ -1513,6 +1565,7 @@ int main(int argc, char **argv)
                     }
                     else if (k == SDLK_RETURN || k == SDLK_SPACE) mode_confirm();
                 } else if (g_state == S_MODE) {
+                    code_key(k);
                     if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); g_state = S_IDLE; }
                     /* PIU.EXE FUN_2BD93: bits 1/2 rolam a lista (dir 2/3), bits 8/0x10 apontam cur+0/cur+1 (dir 0/1; repetir entra); centro nao e lido.
                      * Bits do pad confirmados na pratica pelo usuario: 1/2 = baixo-esq/baixo-dir (azuis Z/C), 8/0x10 = cima-esq/cima-dir (Q/E).
@@ -1539,7 +1592,7 @@ int main(int argc, char **argv)
                     if (k == SDLK_ESCAPE) { music_stop(); g_state = S_IDLE; }
                     else on_press(key_to_col(k, g_dbl || g_two));
                 } else if (g_state == S_END) {
-                    if (k == SDLK_ESCAPE) { g_stage = 0; g_sflag = 0; goto_idle(); }
+                    if (k == SDLK_ESCAPE) { g_stage = 0; g_sflag = 0; mods_clear(); goto_idle(); }
                     else if (k == SDLK_s || k == SDLK_KP_5 || k == SDLK_RETURN || k == SDLK_KP_ENTER || k == SDLK_SPACE) g_endkey = 1;
                 } else if (g_state == S_RESULT) {
                     if (k == SDLK_RETURN || k == SDLK_ESCAPE || k == SDLK_KP_ENTER || k == SDLK_s || k == SDLK_KP_5) goto_idle();   /* antes voltava a S_SELECT (tela antiga, desativada) */

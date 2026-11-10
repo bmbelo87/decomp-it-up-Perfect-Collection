@@ -413,3 +413,26 @@ Confirmado no ELF (mesmos desvios no DOS). O quadro de gameplay `func_24de6` def
 - Resultado (`func_257cf`, quadro 600 + c%480): so aparecem com c > 10 score (7 digitos, x=160|588, y=16), c>30/35/40/45/50/55 PERFECT/GREAT/GOOD/BAD/MISS/MAX COMBO (3 digitos em x=176|488, y=343,293,243,193,143,78; digitos de event.tga 24x40, v0=192, passo -22), c>70 a nota (tile grade_s se vida>=1.0 e 0 MISS, senao A >=0.9, B >=0.8, C >=0.7, D >=0.6, F; em (118|522, 228), alfa = fade*0.5; fade = 1 ate c=380 e depois (400-c)/20). **SFX**: idx 8 canal 1 em c=30,35,...,55 (um por numero); idx 9 canal 2 em c=70 (nota); em c=80 a voz da nota idx 0x17..0x1B (RANK_A..F, canal 6) pela vida (>=0.9/0.8/0.7/0.6). Sai com c>400 ou (c>250 e botao) -> `func_2568a`.
 - Proximo estagio (`func_2568a`): estagio++ ; EASY/HARD/CRAZY: continua se <3, ou ==3 com as 3 vidas >= 0.9 (extra stage); DOUBLE: ==3 exige a 1a vida >= 1.0; BATALHA <3; REMIX/REMIXDB/REMIXCZ <2. Continua -> roda de musicas (estado 0xA); senao GAME OVER.
 - Nao tratado: lampadas (func_27bb6), musica do resultado (func_27b2a, nao identificada), modo batalha (ATTACK), credito/tempo no resultado. game.c: `end_start/end_step/draw_end`, estado `S_END`; teste: `-end FASE -endc QUADRO`.
+
+## Atualização 40 — Códigos (modifiers) nas telas de modo e de músicas
+
+**Confirmado (ELF `piu`, `func_2a72b` P1 / `func_2a973` P2, tabela `0x81219AA`, 16 × 8 teclas; DL=1 DR=2 C=4 UL=8 UR=0x10):** as 8 últimas teclas de cada jogador são comparadas com a tabela; achada a sequência, o histórico é zerado (`func_2a6c9`) e, se algum flag mudou, toca um beep (`ac_sound_play_effect(0,2,1)`). A tabela bate com a lista de códigos do usuário (numpad: 7=UL 9=UR 1=DL 3=DR 5=centro):
+
+| # | Código | Efeito nos flags |
+|---|---|---|
+| 0 | 55555555 | zera flags de modo altos e modificadores (cancelar) |
+| 1 | 55975315 | VANISH (0x10, limpa 0x100) |
+| 2 | 55159357 | MIRROR (0x20) |
+| 3 / 4 / 5 | 55153555 / 55355755 / 55755595 | 8X / 4X / 2X (0x08 / 0x04 / 0x02, exclusivos) |
+| 6 | 51535957 | RANDOM VELOCITY (0x40) |
+| 7 | 79579579 | NONSTEP (0x80) |
+| 8 / 9 | 55797955 / 55979755 | flags de modo 0x1000 / 0x2000 (exclusivos) |
+| 10 | 13573159 | flag de modo 0x4000 |
+| 11 / 12 | 79513579 / 79351531 | RANDOM VANISH (0x100) / RANDOM STEP (0x200) |
+| 13 | 17159395 | REMIXDB (só REMIX, 1 jogador, na roda) |
+| 14 | 51535153 | REMIXCZ (só REMIX, fase 6) |
+| 15 | 95197537 | existe na tabela mas não é despachada nessa função |
+
+Entrada nas telas MODE SELECT e na roda de músicas; letras = P1, teclado numérico = P2 (só quem entrou). Os modificadores persistem durante o crédito e são zerados no fim do jogo / ao voltar ao título.
+
+**Aplicado em jogo:** velocidade 2X/4X/8X (ajusta `g_speed`) e MIRROR (espelha colunas por metade; double espelha as 10). **Ainda não aplicados** (só armazenados): VANISH, RANDOM VELOCITY/VANISH/STEP, NONSTEP, SYNCHRO/COUPLE/UNION. **Inferido:** índice/canal do beep (sfx 1, canal 2) e os nomes dos bits.
