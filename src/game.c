@@ -605,17 +605,23 @@ static void draw_play(void)
     static const float PULSE[8] = { 1.0f, .97f, .94f, .91f, .88f, .85f, .72f, .69f };    /* 0x81206EA */
     float x0s[2] = { 28.f, 348.f }; if (g_dbl) { x0s[0] = 66.f; x0s[1] = 311.f; } else if ((g_sflag & 3) == 2) x0s[0] = 348.f;
     glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    for (int col = 0; col < ncols; col++) {
+    /* Ordem de desenho (func_221a4): DL, centro, DR, UR, UL - cada receptor e um sprite separado, entao Z/S/C ficam atras e Q/E na frente. Tres passadas como o original:
+     * receptores b1/b2 (221a4), depois p1..p8 (22386), depois f1..f8 (22502). */
+    static const int ORD[5] = { 0, 2, 4, 3, 1 };
+    for (int pass = 0; pass < 3; pass++)
+    for (int k = 0; k < ncols; k++) {
+        int col = (k / 5) * 5 + ORD[k % 5];
         Spr *sp = g_spd[col % 5]; if (!sp) continue;
         float x0 = x0s[col / 5] + 48.f * (col % 5), cx = x0 + 35.f;
         int pc = (int)((now - g_pt[col]) * 60 / 1000), fc = (int)((now - g_ft[col]) * 60 / 1000);
-        const SprTile *t = sp2_find(sp, btag);
-        if (t) { glPushMatrix(); glTranslatef(cx, recY, 0); if (pc < 8) glScalef(PULSE[pc], PULSE[pc], 1); glColor4f(1, 1, 1, .95f); draw_tile(&g_arrow, t, 0, 0); glPopMatrix(); }
+        const SprTile *t;
         glColor4f(1, 1, 1, 1);
-        if (pc >= 0 && pc < 16) { char tg[4]; snprintf(tg, sizeof tg, "p%d", pc / 2 + 1); if ((t = sp2_find(sp, tg))) draw_tile(&g_arrow, t, x0, recY - 35.f); }
-        if (fc >= 0 && fc < 24) { char tg[4]; snprintf(tg, sizeof tg, "f%d", fc / 3 + 1); if ((t = sp2_find(sp, tg))) draw_tile(&g_arrow, t, x0, recY - 35.f); }
+        if (pass == 0) { t = sp2_find(sp, btag); if (t) { glPushMatrix(); glTranslatef(cx, recY, 0); if (pc < 8) glScalef(PULSE[pc], PULSE[pc], 1); glColor4f(1, 1, 1, .95f); draw_tile(&g_arrow, t, 0, 0); glPopMatrix(); } }
+        else if (pass == 1) { if (pc >= 0 && pc < 16) { char tg[4]; snprintf(tg, sizeof tg, "p%d", pc / 2 + 1); if ((t = sp2_find(sp, tg))) draw_tile(&g_arrow, t, x0, recY - 35.f); } }
+        else { if (fc >= 0 && fc < 24) { char tg[4]; snprintf(tg, sizeof tg, "f%d", fc / 3 + 1); if ((t = sp2_find(sp, tg))) draw_tile(&g_arrow, t, x0, recY - 35.f); } }
     }
-    for (int col = 0; col < ncols; col++) {
+    for (int k = 0; k < ncols; k++) {
+        int col = (k / 5) * 5 + ORD[k % 5];
         Spr *sp = g_spd[col % 5]; const SprTile *t = sp ? sp2_find(sp, ntag) : NULL; if (!t) continue;
         float x0 = x0s[col / 5] + 48.f * (col % 5);
         for (int r = 0; r < PIU_ROWS; r++) {

@@ -378,3 +378,5 @@ Confirmado no ELF e igual no DOS (FUN_22FD8 tem os mesmos desvios). Coordenadas 
 - Confirmado: `TYPE pattern a b c` (FUN_2F4EF): a -> [obj+0x24], b -> hi16 de [obj+0x28], c -> byte baixo. No desenho (tipo 3) a grade tem **c colunas x b linhas**, passo = (x+w, y+h) do tile 0 (translate x*coluna, linha*altura para baixo); indice do tile = `(a != 0 ? linha*c + coluna : b*coluna + linha) + (int)(n*(1-frac))` modulo n. Antes so se desenhava um tile (a Mobius Strip, 213, mostra 2x2 tiles 320x240 identicos).
 - Tipo 1 (TILE): os tiles sao desenhados do ultimo ao primeiro (ordem invertida, confirmado no laco que decrementa).
 - game.c: `Spr.pb/pc/a`, `bga_draw_n`.
+
+- Ordem de desenho dos receptores (func_221a4, confirmado): DL(x35), centro(x131), DR(x227), UR(x179), UL(x83), em tres passadas (b1/b2, p, f). Como sao sprites separados, Z/S/C ficam atras e Q/E na frente. game.c: `ORD` em `draw_play` (notas usam a mesma ordem; inferido).
