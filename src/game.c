@@ -663,7 +663,7 @@ static void draw_play(void)
             if ((t = sp2_find_x(s541, "score_"))) tile_up(&g_arrow, t, slot ? 560.f : 14.f, 52);
         }
         /* julgamento (func_22fd8): 25 quadros; escala de entrada tabela 0x81206EA+0x34 (idx 25-t para t>10); tile = perfec/great_/good__/bad___/miss__ pelo ultimo julgamento ('5'..'9').
-         * Combo: 3 digitos de event.tga (celulas 32x48, v0 = .375 + (d/8)*.1875) a 70 px abaixo, passo -26, a partir de +10; branco se combo>=4, depois azul (0.2,0.2,1) se serie de MISS>=4 (continua a esquerda). */
+         * Combo: 3 digitos de event.tga (celulas 32x48, v0 = .375 + (d/8)*.1875) a 70 px abaixo, passo -26, a partir de +10; branco se combo>=4, depois vermelho (1,0.2,0.2) se serie de MISS>=4 (continua a esquerda). */
         {
             int jt = 25 - (int)((now - g_lastgrade_t) * 60 / 1000);
             if (g_lastgrade >= '5' && g_lastgrade <= '9' && jt > 0) {
@@ -677,7 +677,7 @@ static void draw_play(void)
                 Tex *et = rs_tex(&g_arrow, "event.tga");
                 for (int pass = 0; pass < 2 && et; pass++) {
                     int n = pass == 0 ? g_pl.combo : g_pl.miss_streak; if (n < 4) continue;
-                    if (pass == 1) glColor4f(0.2f, 0.2f, 1, 1);
+                    if (pass == 1) glColor4f(1, 0.2f, 0.2f, 1);   /* glColor3f(push 0.2, 0.2, 1.0) = (r,g,b) (1.0, 0.2, 0.2): vermelho */
                     glTranslatef(10, 0, 0);
                     for (int i = 0; i < 3; i++) {
                         int d = n % 10; n /= 10; float u = (d % 8) * 0.125f, vt = (d / 8) * 0.1875f + 0.375f;
