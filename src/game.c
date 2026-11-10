@@ -644,7 +644,7 @@ static void draw_play(void)
     }
     /* HUD (FUN_24DE6 -> func_22fd8 julgamento/combo, func_23a4b vida, func_21e47 + func_21885 score). Coordenadas do jogo em y-para-cima (como o original). */
     {
-        Spr *s541 = g_sp541, *s542 = g_sp542; const SprTile *t;
+        Spr *s541 = g_sp541, *s542 = g_sp542; const SprTile *t; uint32_t fr = now * 60 / 1000;      /* contador de quadros a 60 Hz (0x83C627A) */
         int base_slot = (g_sflag & 3) == 2 ? 1 : 0;
         glColor4f(1, 1, 1, 1);
         glPushMatrix(); glTranslatef(0, 480, 0); glScalef(1, -1, 1);
@@ -657,8 +657,8 @@ static void draw_play(void)
             int q = (int)(v * 256) / 6; float gx = slot ? 352.f : 32.f;
             glPushMatrix(); glTranslatef(gx, 445, 0);
             if ((t = sp2_find_x(s542, "gauge_b"))) tile_up(&g_arrow, t, 0, 0);
-            if (P->life < 180 && (now / 33) % 2 == 0 && (t = sp2_find_x(s542, "gauge_D"))) { glColor4f(1, 1, 0, 1); tile_up(&g_arrow, t, 0, 0); glColor4f(1, 1, 1, 1); }
-            if ((t = sp2_find_x(s542, "gauge__"))) {
+            if (P->life < 180 && (fr & 1) == 0 && (t = sp2_find_x(s542, "gauge_D"))) { glColor4f(1, 1, 0, 1); tile_up(&g_arrow, t, 0, 0); glColor4f(1, 1, 1, 1); }
+            if ((fr & 1) && (t = sp2_find_x(s542, "gauge__"))) {      /* preenchimento so em quadros impares (c627a % 2 != 0): pisca a 30 Hz */
                 Tex *tx = rs_tex(&g_arrow, t->file);
                 if (tx) {
                     if (!slot) { float xa = (float)(253 - 6 * q); quad(tx, xa, 0, 256 - xa, 32, (t->u0 + xa) / tx->w, (t->v0 + 32) / tx->h, (t->u0 + 256) / tx->w, t->v0 / tx->h); }

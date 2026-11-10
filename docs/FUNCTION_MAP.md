@@ -390,3 +390,5 @@ Confirmado no ELF e igual no DOS (FUN_22FD8 tem os mesmos desvios). Coordenadas 
 - Dado: `514_H1`, `403_H1` e `505_H3` (arquivos de 1 jogador) trazem notas nas colunas 5-9 (em 514, H1 = H2, as duas metades). O original decide single/double/couple **so pelas flags de modo**; com 1 jogador so as colunas 0-4 sao jogadas. A heuristica antiga (qualquer nota em 5-9 liga o double) foi removida e as colunas 5-9 so entram em DB (double) e no couple.
 - Vida do P2: espelho do P1 (faixa [0, 6q+3] com a textura invertida em x; vermelho na borda de dentro, perto do centro).
 - `start_song` agora escreve uma linha de log (stderr): musica, passo, sflag, modo, secao.
+
+- Vida piscando (func_23a4b, confirmado): o preenchimento `gauge__` so e desenhado nos quadros em que `0x83C627A % 2 != 0` (contador de quadros a 60 Hz), o alerta `gauge_D` nos pares (com vida<180). game.c: `fr = now*60/1000` no bloco HUD. O 60 Hz e inferido do contador por quadro do original.
