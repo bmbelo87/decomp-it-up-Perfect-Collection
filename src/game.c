@@ -462,7 +462,9 @@ static PiuWindows g_win_;
 static int g_dbl, g_song, g_diff;
 static BgaRun g_bga;
 static int g_lastrow, g_prevrow, g_flag1, g_fail, g_maxcombo, g_endpos;
-static int g_pressed[10]; static uint32_t g_flashuntil[10];
+static int g_pressed[10]; static uint32_t g_flashuntil[10], g_pt[10], g_ft[10];     /* g_pt: instante do toque (tiles p + pulso), g_ft: instante do acerto (tiles f) */
+static int g_sflag;
+static Spr *g_spd[5];            /* SP2 por direcao: DL ARROW542, UL 541, centro 545, UR 543, DR 544 (func_221a4: 0x83C7226/83C9FAA/83C907E/83C8152/83C62FA) */
 static int g_lastgrade = 0; static uint32_t g_lastgrade_t;
 static int g_notes_total;
 
@@ -506,7 +508,7 @@ static void start_song(int di)
     g_lastrow = 0; g_prevrow = 0; g_flag1 = 0; g_fail = 0; g_maxcombo = 0; g_lastgrade = 0;
     g_notes_total = 0;
     for (int r = 0; r < PIU_ROWS; r++) if (row_max(r, 0, 10) == '9') g_notes_total++;
-    memset(g_pressed, 0, sizeof g_pressed); memset(g_flashuntil, 0, sizeof g_flashuntil);
+    memset(g_pressed, 0, sizeof g_pressed); memset(g_flashuntil, 0, sizeof g_flashuntil); for (int i = 0; i < 10; i++) g_pt[i] = g_ft[i] = 0x80000000u;
     bga_unload(&g_bga); bga_load(&g_bga, s->id);
     music_load(s->id);
     g_endpos = 0; for (int r = PIU_ROWS - 1; r >= 0; r--) if (row_max(r, 0, 14) > '0') { g_endpos = r; break; }
@@ -515,7 +517,7 @@ static void start_song(int di)
 static void on_press(int col)       /* 0x24100..0x242B7 */
 {
     if (col < 0 || col > 9) return;
-    g_pressed[col] = 1; g_flashuntil[col] = SDL_GetTicks() + 120;
+    g_pressed[col] = 1; g_flashuntil[col] = SDL_GetTicks() + 120; g_pt[col] = SDL_GetTicks();
     int32_t pos = music_pos(); int slot = slot_for(pos); PiuClock ck = clock_for(slot);
     int row = piu_row_now(&ck, pos, 0); if (row < g_prevrow) row = g_prevrow;
     if (ck.n > 2 && row_max(row, 0, 10) < '9') row++;                   /* 0x23FAD */
@@ -524,6 +526,7 @@ static void on_press(int col)       /* 0x24100..0x242B7 */
     if (*cell != '9') return;
     int d = (row * 60) / ck.n - piu_c18(&ck, pos);
     *cell = (uint8_t)piu_classify(&g_win_, d);
+    if (*cell >= '5' && *cell <= '7') g_ft[col] = SDL_GetTicks();       /* tiles f1..f8 (func_22502); quais julgamentos disparam = inferido */
     int m = row_max(row, 0, 10);
     if (row > g_lastrow && m >= '5' && m <= '8') { judge_grade(m); g_flag1 = 1; g_lastrow = row; }
 }
@@ -568,18 +571,34 @@ static void draw_play(void)
     int frame = pos / 4; if (frame < 0) frame = 0;
     glColor4f(1, 1, 1, 1); bga_draw(&g_bga, frame);
     glColor4f(1, 1, 1, 1);
-    float c14 = (float)piu_c14(&ck, pos), recY = 110.0f; int ncols = g_dbl ? 10 : 5;
-    float xs = g_dbl ? 66 : 200;     /* single: painel centralizado */
+    float c14 = (float)piu_c14(&ck, pos); int ncols = g_dbl ? 10 : 5;
+    /* Campo (FUN_24DE6 -> func_22674/226ad/226f9, translate (x0, 378) em y-para-cima): P1 x0=28, P2 x0=348; double 66 e 311. Colunas a 48 px; receptores em (x0+35+48k, 413 de baixo = 67 do topo).
+     * Notas: dy = (60*r/n - c14/240) * velocidade para baixo da linha (func_22840: t*v/240 - linha*v em y-para-cima). Camadas: receptor b1/b2 (221a4), p1..p8 (22386), f1..f8 (22502), notas n1..n6 (22840). */
+    const float recY = 67.0f; uint32_t now = SDL_GetTicks();
+    int beat60 = (int)(c14 / 240.0f); if (beat60 < 0) beat60 = 0;
+    const char *btag = ((beat60 + 6000) % 60) >= 45 ? "b2" : "b1";                   /* c6292 = (resto%60)/45 */
+    char ntag[4]; snprintf(ntag, sizeof ntag, "n%d", ((beat60 + 24000) % 60) / 10 + 1);   /* ebp = resto/10 + 2 (indice do tile) */
+    static const float PULSE[8] = { 1.0f, .97f, .94f, .91f, .88f, .85f, .72f, .69f };    /* 0x81206EA */
+    float x0s[2] = { 28.f, 348.f }; if (g_dbl) { x0s[0] = 66.f; x0s[1] = 311.f; } else if ((g_sflag & 3) == 2) x0s[0] = 348.f;
     glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     for (int col = 0; col < ncols; col++) {
-        float cx = xs + 24 + 48 * col + (col >= 5 ? 5 : 0);
-        int lit = g_flashuntil[col] > SDL_GetTicks();
-        draw_arrow(col, cx, recY, lit ? 1 : 0, 0);
+        Spr *sp = g_spd[col % 5]; if (!sp) continue;
+        float x0 = x0s[col / 5] + 48.f * (col % 5), cx = x0 + 35.f;
+        int pc = (int)((now - g_pt[col]) * 60 / 1000), fc = (int)((now - g_ft[col]) * 60 / 1000);
+        const SprTile *t = sp2_find(sp, btag);
+        if (t) { glPushMatrix(); glTranslatef(cx, recY, 0); if (pc < 8) glScalef(PULSE[pc], PULSE[pc], 1); glColor4f(1, 1, 1, .95f); draw_tile(&g_arrow, t, 0, 0); glPopMatrix(); }
+        glColor4f(1, 1, 1, 1);
+        if (pc >= 0 && pc < 16) { char tg[4]; snprintf(tg, sizeof tg, "p%d", pc / 2 + 1); if ((t = sp2_find(sp, tg))) draw_tile(&g_arrow, t, x0, recY - 35.f); }
+        if (fc >= 0 && fc < 24) { char tg[4]; snprintf(tg, sizeof tg, "f%d", fc / 3 + 1); if ((t = sp2_find(sp, tg))) draw_tile(&g_arrow, t, x0, recY - 35.f); }
+    }
+    for (int col = 0; col < ncols; col++) {
+        Spr *sp = g_spd[col % 5]; const SprTile *t = sp ? sp2_find(sp, ntag) : NULL; if (!t) continue;
+        float x0 = x0s[col / 5] + 48.f * (col % 5);
         for (int r = 0; r < PIU_ROWS; r++) {
             float y = recY + ((60.0f * r) / ck.n - c14 / 240.0f) * g_speed;
             if (y < -60) continue;
             if (y > 540) break;
-            if (g_chart.cell[r * PIU_ROWSTRIDE + col] == '9') draw_arrow(col, cx, y, (int)(pos / 20) % 3, 1);
+            if (g_chart.cell[r * PIU_ROWSTRIDE + col] == '9') draw_tile(&g_arrow, t, x0, y - 35.f);
         }
     }
     /* HUD */
@@ -1052,7 +1071,8 @@ static void wheel_step(void)
 static void load_step(void)            /* FUN_2A533: carrega e desenha TITLE\T%03d.PNZ da musica; depois FUN_2058F inicia o jogo. Duracao: empirico (~1,5 s) */
 {
     if (++g_load_t < 90) return;
-    g_state = S_SELECT; start_song(g_load_di);                /* sem o arquivo de passos, cai na tela antiga */
+    start_song(g_load_di);                                   /* a tela antiga de selecao (S_SELECT) foi desativada */
+    if (g_state == S_LOAD) goto_idle();                      /* sem o arquivo de passos: volta ao attract */
 }
 static void draw_load(void)
 {
@@ -1195,7 +1215,8 @@ int main(int argc, char **argv)
     if (svc_start) { svc_open(); g_svs = svc_start - 1; g_svcur = g_svs ? g_svs - 1 : 0; }
     char p[300]; path_of(p, sizeof p, "BGA/00.DAT");
     if (rs_open(&g_arrow, p)) { logf_("BGA/00.DAT nao encontrado em %s\n", g_dir); }
-    else { const PiuResEntry *e = piu_res_find(&g_arrow.res, "ARROW541.SP2"); if (e) g_sp541 = spr_parse(e->data, e->size); e = piu_res_find(&g_arrow.res, "ARROW542.SP2"); if (e) g_sp542 = spr_parse(e->data, e->size); }
+    else { const PiuResEntry *e = piu_res_find(&g_arrow.res, "ARROW541.SP2"); if (e) g_sp541 = spr_parse(e->data, e->size); e = piu_res_find(&g_arrow.res, "ARROW542.SP2"); if (e) g_sp542 = spr_parse(e->data, e->size);
+        g_spd[0] = g_sp542; g_spd[1] = g_sp541; const char *N3[3] = { "ARROW545.SP2", "ARROW543.SP2", "ARROW544.SP2" }; for (int k = 0; k < 3; k++) { e = piu_res_find(&g_arrow.res, N3[k]); if (e) g_spd[2 + k] = spr_parse(e->data, e->size); } }
     if (!g_nsongs) { logf_("STAGE.CFG sem musicas (%s)\n", g_dir); return 1; }
     if (skip) g_state = S_SELECT;
     if (viewname) { bga_load_name(&g_ab, viewname); g_state = S_VIEW; }
@@ -1263,7 +1284,7 @@ int main(int argc, char **argv)
                     if (k == SDLK_ESCAPE) { music_stop(); g_state = S_IDLE; }
                     else on_press(key_to_col(k, g_dbl));
                 } else if (g_state == S_RESULT) {
-                    if (k == SDLK_RETURN || k == SDLK_ESCAPE || k == SDLK_KP_ENTER || k == SDLK_s || k == SDLK_KP_5) g_state = S_SELECT;
+                    if (k == SDLK_RETURN || k == SDLK_ESCAPE || k == SDLK_KP_ENTER || k == SDLK_s || k == SDLK_KP_5) goto_idle();   /* antes voltava a S_SELECT (tela antiga, desativada) */
                 }
             }
         }
