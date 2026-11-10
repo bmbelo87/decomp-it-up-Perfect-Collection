@@ -441,3 +441,9 @@ Entrada nas telas MODE SELECT e na roda de músicas; letras = P1, teclado numér
 
 **Confirmado (ELF `func_21915`, chamada por `func_2be94`, `func_2c840` e `func_24de6`, ou seja, MODE SELECT, roda de músicas e gameplay; `func_21885` = translate(x,y) + sprite + translate de volta):** os ícones vêm do `ARROW541.SP2` (o índice do original é o tile − 1), x = 4 (P1) / 600 (P2), y para cima: speed 2X/4X/8X `accel_` (y 240) ou random step `raccel` (240); vanish (200) ou random vanish `v_rand` (200); mirror (160); random velocity `random` (120); nonstep `nonstp` (80). Flags de modo: `sync__` (0x1000) ou `couple` (0x2000) em (4, 280), sem batalha. Em double só o jogador que entrou mostra os ícones.
 Teste: `-mod 0x2f4` liga modificadores em P1/P2.
+
+## Atualização 42 — Telas LOAD após o DANCE GRADE e efeitos dos modificadores
+
+**Confirmado (ELF `func_2c63f`, 0x2C689..0x2C6A2):** ao voltar à roda de músicas, o jogo mostra `TITLE\LOAD%d.PNZ` (`%d` = estágios jogados, `DAT 0x81206CE`) pela mesma rotina `func_2a533` das telas T%03d; com 0 (vindo do mode select) não há tela LOAD. `func_2d3df` compara a data do DOS com 2000‑12‑27: depois dela, o estágio 1 usa LOAD4 no lugar de LOAD1 (LOAD1 é o anúncio "2000.12.27 Wed"). LOAD2 = Banya, LOAD3 = "TRY BONUS STAGE", LOAD4 = "TRY NEXT STAGE". Duração (~1,5 s) inferida.
+
+**Modificadores em jogo:** velocidade padrão agora 1X (2X/4X/8X = 2/4/8; as teclas 1–8 ainda valem), MIRROR, RANDOM STEP (permutação das colunas), NONSTEP (setas ocultas), VANISH (setas somem na metade de cima da tela), RANDOM VANISH, RANDOM VELOCITY (velocidade oscila). Os cinco últimos são **inferidos** (só os bits e os ícones são confirmados). SYNCHRO/COUPLE/UNION continuam só armazenados.

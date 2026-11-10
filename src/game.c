@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
 #include <stdarg.h>
 #ifndef _WIN32
 #define strtok_s strtok_r      /* MSVC/C11 anexo K -> POSIX */
@@ -472,12 +473,12 @@ static int chart_path(char *out, size_t sz, int id, int d)
 }
 
 /* ------------------------------------------------------------------ jogo */
-enum { S_SELECT, S_PLAY, S_RESULT, S_MODE, S_MCONF, S_WHEEL, S_LOAD, S_END, S_IDLE, S_LOGO, S_INTRO, S_TITLE, S_VIEW };   /* original: DAT_00153710 = 0 idle, 0xD/0xE logo, 0x10/0x11 intro, 0x13/0x14 title, 0xB selecao */
+enum { S_SELECT, S_PLAY, S_RESULT, S_MODE, S_MCONF, S_WHEEL, S_LOAD, S_END, S_WLOAD, S_IDLE, S_LOGO, S_INTRO, S_TITLE, S_VIEW };   /* original: DAT_00153710 = 0 idle, 0xD/0xE logo, 0x10/0x11 intro, 0x13/0x14 title, 0xB selecao */
 static int g_state = S_IDLE;
 static ResSet g_arrow;       /* BGA/00.DAT */
 static Spr *g_sp541, *g_sp542;
 static Tex *g_back;          /* fundo da selecao */
-static int g_sel = 0, g_dsel = 0, g_speed = 2;     /* velocidade 1..8 */
+static int g_sel = 0, g_dsel = 0, g_speed = 1, g_sbase = 1;     /* velocidade 1..8 (padrao 1X; os codigos 2X/4X/8X escolhem 2/4/8) */
 static Tex g_backtex; static int g_backid = -1;
 
 static PiuChart g_chart;
@@ -537,7 +538,17 @@ static void start_song(int di)
     logf_("start_song: musica %d passo %s (%s) sflag=%d modo=%d secao=%d\n", s->id, DIFFS[di], p, g_sflag, g_m_sel, g_w_sec);
     {   /* efeitos dos codigos: velocidade 2X/4X/8X e MIRROR (inverte as colunas de cada metade; double inverte as 10). Demais ainda nao aplicados. */
         int pl = ((g_sflag & 3) == 2) ? 1 : 0, m = g_mod[pl];
-        if (m & 2) g_speed = 2; else if (m & 4) g_speed = 4; else if (m & 8) g_speed = 8;
+        g_speed = (m & 2) ? 2 : (m & 4) ? 4 : (m & 8) ? 8 : g_sbase;
+        /* RANDOM STEP (0x200): permutacao aleatoria das 5 colunas de cada metade (inferido: o original embaralha os passos) */
+        for (int h = 0; h < 2; h++) {
+            int mm = (di >= 3 && di <= 5) ? g_mod[h] : m, dbl2 = di == 6;
+            if (!(mm & 0x200) || (h && !(di >= 3 && di <= 5) && !dbl2) ) continue;
+            if (dbl2 && h) break;
+            int n = dbl2 ? 10 : 5, base = dbl2 ? 0 : h * 5, perm[10];
+            for (int i = 0; i < n; i++) perm[i] = i;
+            for (int i = n - 1; i > 0; i--) { int j = rand() % (i + 1), t2 = perm[i]; perm[i] = perm[j]; perm[j] = t2; }
+            for (int r = 0; r < PIU_ROWS; r++) { uint8_t *c = g_chart.cell + r * PIU_ROWSTRIDE + base, o[10]; memcpy(o, c, n); for (int i = 0; i < n; i++) c[perm[i]] = o[i]; }
+        }
         for (int h = 0; h < 2; h++) {
             int mm = (di >= 3 && di <= 5) ? g_mod[h] : m;
             if (!(mm & 0x20)) continue;
@@ -769,10 +780,16 @@ static void draw_play(void)
         int col = (k / 5) * 5 + ORD[k % 5];
         Spr *sp = g_spd[col % 5]; const SprTile *t = sp ? sp2_find(sp, ntag) : NULL; if (!t) continue;
         float x0 = x0s[col / 5] + 48.f * (col % 5);
+        int md = g_mod[g_two ? col / 5 : ((g_sflag & 3) == 2 ? 1 : 0)];
+        float spd = (float)g_speed;
+        if (md & 0x40) spd *= 1.0f + 0.5f * (1.0f + sinf(c14 / 240.0f * 0.35f)) * 1.5f;      /* RANDOM VELOCITY (inferido): velocidade varia ao longo da musica */
         for (int r = 0; r < PIU_ROWS; r++) {
-            float y = recY + ((60.0f * r) / ck.n - c14 / 240.0f) * g_speed;
+            float y = recY + ((60.0f * r) / ck.n - c14 / 240.0f) * spd;
             if (y < -60) continue;
             if (y > 540) break;
+            if (md & 0x80) continue;                                                                     /* NONSTEP: setas nao aparecem */
+            if (md & 0x10) { if (y < 300) continue; }                                                    /* VANISH: somem no meio da tela (inferido) */
+            else if (md & 0x100) { if (y < 180 + (float)((r * 2654435761u >> 24) % 140)) continue; }     /* RANDOM VANISH: limite aleatorio por seta (inferido) */
             if (g_chart.cell[r * PIU_ROWSTRIDE + col] == '9') draw_tile(&g_arrow, t, x0, y - 35.f);
         }
     }
@@ -1325,7 +1342,7 @@ static void code_key(int k)                                      /* teclas do pa
     else if (k == SDLK_q || k == SDLK_KP_7) b = 8; else if (k == SDLK_e || k == SDLK_KP_9) b = 0x10;
     if (b && (g_sflag >> pl & 1)) code_press(pl, b);                     /* so jogador que entrou */
 }
-static void wheel_enter(void)
+static void wheel_begin(void)
 {
     memset(g_hist, 0, sizeof g_hist);
     /* FUN_2C63F: DAT_006E1784 = secao do STAGE.CFG pelo modo (flags 0x10 EASY, 0x20 HARD, 0x80 DOUBLE, 0x100 REMIX, 0x400 CRAZY; BATTLE 0x40 depende de DAT_0012B024: 0 EASY)
@@ -1334,6 +1351,23 @@ static void wheel_enter(void)
     wheel_list();
     g_w_pos = 0; g_m_frame = g_m_anim = 0; g_m_dir = g_m_prev = -1; g_m_t0 = 0; g_state = S_WHEEL;     /* 0x2C63F: 17A4=0, 1794=1788=-1, 179C=0, fase 5 */
 }
+/* Tela LOAD n (FUN_2C63F, 0x2C689..0x2C6A2): apos o DANCE GRADE, ao voltar a roda de musicas, TITLE\LOAD%d.PNZ (n = estagios jogados, DAT 0x81206CE) via FUN_2A533 (mesma rotina da T%03d).
+ * LOAD1 e um anuncio com data 2000.12.27 (FUN_2D3DF: data > 20001227 -> usa LOAD4 no lugar), LOAD2 Banya, LOAD3 "TRY BONUS STAGE", LOAD4 "TRY NEXT STAGE". Duracao inferida (~1,5 s). */
+static Tex g_ldtex; static int g_ldn, g_ldt;
+static void wheel_enter(void)
+{
+    int n = g_stage; if (n < 1) { wheel_begin(); return; }            /* 0x2C663: DAT 0x81206CE (estagios jogados) == 0 -> sem tela LOAD (FUN_2B695, vindo do modo) */
+    if (n == 1) { time_t tt = time(NULL); struct tm *lt = localtime(&tt); if (lt && (lt->tm_year + 1900) * 10000 + (lt->tm_mon + 1) * 100 + lt->tm_mday > 20001227) n = 4; }   /* FUN_2D3DF: apos 27/12/2000 o anuncio (LOAD1) e trocado por LOAD4 */
+    if (n > 4) n = 4;
+    if (g_ldtex.id) { glDeleteTextures(1, &g_ldtex.id); g_ldtex.id = 0; }
+    char p[300]; size_t len; int ok; uint8_t *b;
+    path_of(p, sizeof p, "TITLE/LOAD%d.PNZ", n); b = piu_unpack_file(p, &len, &ok);
+    if (!b) { path_of(p, sizeof p, "TITLE/Load%d.pnz", n); b = piu_unpack_file(p, &len, &ok); }
+    if (!b) { wheel_begin(); return; }
+    g_ldtex = tex_from_png(b, len); free(b); g_ldn = n; g_ldt = 0; g_state = S_WLOAD;
+}
+static void wload_step(void) { if (++g_ldt >= 90) wheel_begin(); }
+static void draw_wload(void) { glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT); glColor4f(1, 1, 1, 1); if (g_ldtex.id) quad(&g_ldtex, 0, 0, 640, 480, 0, 0, 1, 1); }
 static int w_song(int k) { return g_sec[g_w_sec][g_w_list[w_idx(k)]].song; }
 static void cover_cell(int id)                               /* FUN_2AE17 + FUN_2AD1B: quadro 200x142 centrado, recorte (j%2, j/2) da folha */
 {
@@ -1609,7 +1643,7 @@ int main(int argc, char **argv)
                     else if (k == SDLK_PAGEUP) { g_sel = (g_sel + g_nsongs - 10) % g_nsongs; sfx_play(SFX_MOVE, 4); }
                     /* desativado: F1-F4 agora sao service/coin */ /* else if (k >= SDLK_F1 && k <= SDLK_F4) g_speed = 1 << (k - SDLK_F1); */
                     /* desativado: F6-F9 (1,2,4,8) */ /* else if (k >= SDLK_F6 && k <= SDLK_F9) g_speed = 1 << (k - SDLK_F6); */
-                    else if (k >= SDLK_1 && k <= SDLK_8) g_speed = (int)(k - SDLK_0);   /* velocidade 1..8 */
+                    else if (k >= SDLK_1 && k <= SDLK_8) g_speed = g_sbase = (int)(k - SDLK_0);   /* velocidade 1..8 */
                     else if ((k == SDLK_RETURN || k == SDLK_KP_ENTER || k == SDLK_s || k == SDLK_KP_5) && nd) { sfx_play(SFX_ENTER, 3); start_song(dl[g_dsel]); }   /* 0x2C486: idx 4 canal 3 */
                 } else if (g_state == S_PLAY) {
                     if (k == SDLK_ESCAPE) { music_stop(); g_state = S_IDLE; }
@@ -1631,10 +1665,10 @@ int main(int argc, char **argv)
             play_update();
         }
         { uint32_t now = SDL_GetTicks(); acc += now - t_prev; t_prev = now; if (acc > 250) acc = 250;
-          while (acc >= 1000.0 / 60.0) { acc -= 1000.0 / 60.0; if (g_state >= S_IDLE) attract_step(); else if (g_state == S_MODE) mode_step(); else if (g_state == S_MCONF) mconf_step(); else if (g_state == S_WHEEL) wheel_step(); else if (g_state == S_LOAD) load_step(); else if (g_state == S_END) end_step(); else if (g_state == S_SELECT && g_ab.ok) g_m_frame++; } }
+          while (acc >= 1000.0 / 60.0) { acc -= 1000.0 / 60.0; if (g_state >= S_IDLE) attract_step(); else if (g_state == S_MODE) mode_step(); else if (g_state == S_MCONF) mconf_step(); else if (g_state == S_WHEEL) wheel_step(); else if (g_state == S_LOAD) load_step(); else if (g_state == S_WLOAD) wload_step(); else if (g_state == S_END) end_step(); else if (g_state == S_SELECT && g_ab.ok) g_m_frame++; } }
         set_view(); glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT); glColor4f(1, 1, 1, 1);
         if (g_state >= S_IDLE) draw_attract();
-        else if (g_state == S_MODE) draw_mode(); else if (g_state == S_MCONF) draw_mconf(); else if (g_state == S_WHEEL) draw_wheel(); else if (g_state == S_LOAD) draw_load(); else if (g_state == S_END) draw_end(); else if (g_state == S_SELECT) draw_select(); else if (g_state == S_PLAY) draw_play(); else draw_result();
+        else if (g_state == S_MODE) draw_mode(); else if (g_state == S_MCONF) draw_mconf(); else if (g_state == S_WHEEL) draw_wheel(); else if (g_state == S_LOAD) draw_load(); else if (g_state == S_WLOAD) draw_wload(); else if (g_state == S_END) draw_end(); else if (g_state == S_SELECT) draw_select(); else if (g_state == S_PLAY) draw_play(); else draw_result();
         if (g_state == S_MODE || g_state == S_WHEEL || g_state == S_PLAY) draw_mods();
         if (g_service) svc_draw();
         if (autotest && shotpath && SDL_GetTicks() + 150 > t_end) {
