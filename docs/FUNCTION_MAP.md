@@ -348,3 +348,5 @@ SDL2+OpenGL 1.x. `PiuReconstructed.exe`/`jogar.bat`. Seleção (STAGE.CFG + TITL
 - Confirmado (ELF func_2cdfa = FUN_2CDFA, fase 7 de 0xB): pega a musica (lista DAT_006E1782 + indice, FUN_2B09D), para a musica (FUN_294B9), monta o nome do passo por flags de modo (0x81206d2 / DOS DAT_0012B028) com `%d_E1/H1/H3/E2/H2/H4/DB.STF` e chama FUN_2058F ("run %s %s %d"). Nao ha tela de selecao de dificuldade: o **nivel** e o modo escolhido antes (EASY/HARD/REMIX/DOUBLE/CRAZY), a roda lista so as musicas da secao, e confirmar entra na gameplay.
 - Regra: DOUBLE/REMIXDB -> DB; 1P: HARD/REMIX -> H1, CRAZY/REMIXCZ -> H3, senao E1; 2P: HARD/REMIX -> H2, CRAZY/REMIXCZ -> H4, senao E2. Ramo flag 0x4000 (batalha, %d_H1/E1 + "-S") nao tratado.
 - game.c: `wheel_step` chama `start_song(di)`; a tela antiga S_SELECT so serve de fallback se faltar o arquivo.
+
+- Tela de loading (FUN_2A533, ELF func_2a533): antes de iniciar, sprintf "T%03d" da musica, carrega TITLE\T%03d.PNZ e desenha em tela cheia (ac_game_draw_title); depois FUN_2058F inicia o jogo. game.c: estado S_LOAD (`load_step`/`draw_load`); duracao ~1,5 s e **empirica** (no original e o tempo de carga).

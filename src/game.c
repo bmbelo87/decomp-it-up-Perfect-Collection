@@ -448,7 +448,7 @@ static int chart_path(char *out, size_t sz, int id, int d)
 }
 
 /* ------------------------------------------------------------------ jogo */
-enum { S_SELECT, S_PLAY, S_RESULT, S_MODE, S_MCONF, S_WHEEL, S_IDLE, S_LOGO, S_INTRO, S_TITLE, S_VIEW };   /* original: DAT_00153710 = 0 idle, 0xD/0xE logo, 0x10/0x11 intro, 0x13/0x14 title, 0xB selecao */
+enum { S_SELECT, S_PLAY, S_RESULT, S_MODE, S_MCONF, S_WHEEL, S_LOAD, S_IDLE, S_LOGO, S_INTRO, S_TITLE, S_VIEW };   /* original: DAT_00153710 = 0 idle, 0xD/0xE logo, 0x10/0x11 intro, 0x13/0x14 title, 0xB selecao */
 static int g_state = S_IDLE;
 static ResSet g_arrow;       /* BGA/00.DAT */
 static Spr *g_sp541, *g_sp542;
@@ -1022,6 +1022,8 @@ static void wheel_items(void)                                /* FUN_0002B0DD: co
     for (int i = -1; i > -9; i--) { glTranslatef(-66, 0, 0); bar_cell(g_songs[w_song(i)].id, 0); }
     glPopMatrix(); glPopMatrix(); glPopMatrix();
 }
+static int g_load_di, g_load_t;
+static void load_back(int id);
 static void wheel_step(void)
 {
     int remain = 30 - g_m_t0 / 60;
@@ -1045,7 +1047,18 @@ static void wheel_step(void)
       else if (fl == 0x100 || fl == 0x20) di = two ? 4 : 1;
       else if (fl == 0x400 || fl == 0x800) di = two ? 5 : 2;
       else di = two ? 3 : 0;
-      bga_unload(&g_ab); bga_unload(&g_ab2); g_state = S_SELECT; start_song(di); }       /* sem grafico: se faltar o arquivo, cai na tela antiga */
+      bga_unload(&g_ab); bga_unload(&g_ab2); g_load_di = di; g_load_t = 0; g_state = S_LOAD; }       /* tela de loading (T%03d.PNZ), depois start_song */
+}
+static void load_step(void)            /* FUN_2A533: carrega e desenha TITLE\T%03d.PNZ da musica; depois FUN_2058F inicia o jogo. Duracao: empirico (~1,5 s) */
+{
+    if (++g_load_t < 90) return;
+    g_state = S_SELECT; start_song(g_load_di);                /* sem o arquivo de passos, cai na tela antiga */
+}
+static void draw_load(void)
+{
+    load_back(g_songs[g_sel].id);
+    glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT); glColor4f(1, 1, 1, 1);
+    if (g_backtex.id) quad(&g_backtex, 0, 0, 640, 480, 0, 0, 1, 1);
 }
 static void draw_wheel(void)
 {
@@ -1263,10 +1276,10 @@ int main(int argc, char **argv)
             play_update();
         }
         { uint32_t now = SDL_GetTicks(); acc += now - t_prev; t_prev = now; if (acc > 250) acc = 250;
-          while (acc >= 1000.0 / 60.0) { acc -= 1000.0 / 60.0; if (g_state >= S_IDLE) attract_step(); else if (g_state == S_MODE) mode_step(); else if (g_state == S_MCONF) mconf_step(); else if (g_state == S_WHEEL) wheel_step(); else if (g_state == S_SELECT && g_ab.ok) g_m_frame++; } }
+          while (acc >= 1000.0 / 60.0) { acc -= 1000.0 / 60.0; if (g_state >= S_IDLE) attract_step(); else if (g_state == S_MODE) mode_step(); else if (g_state == S_MCONF) mconf_step(); else if (g_state == S_WHEEL) wheel_step(); else if (g_state == S_LOAD) load_step(); else if (g_state == S_SELECT && g_ab.ok) g_m_frame++; } }
         set_view(); glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT); glColor4f(1, 1, 1, 1);
         if (g_state >= S_IDLE) draw_attract();
-        else if (g_state == S_MODE) draw_mode(); else if (g_state == S_MCONF) draw_mconf(); else if (g_state == S_WHEEL) draw_wheel(); else if (g_state == S_SELECT) draw_select(); else if (g_state == S_PLAY) draw_play(); else draw_result();
+        else if (g_state == S_MODE) draw_mode(); else if (g_state == S_MCONF) draw_mconf(); else if (g_state == S_WHEEL) draw_wheel(); else if (g_state == S_LOAD) draw_load(); else if (g_state == S_SELECT) draw_select(); else if (g_state == S_PLAY) draw_play(); else draw_result();
         if (g_service) svc_draw();
         if (autotest && shotpath && SDL_GetTicks() + 150 > t_end) {
             uint8_t *px = (uint8_t *)malloc((size_t)g_winw * g_winh * 3); FILE *f = fopen(shotpath, "wb");
