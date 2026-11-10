@@ -436,3 +436,8 @@ Confirmado no ELF (mesmos desvios no DOS). O quadro de gameplay `func_24de6` def
 Entrada nas telas MODE SELECT e na roda de músicas; letras = P1, teclado numérico = P2 (só quem entrou). Os modificadores persistem durante o crédito e são zerados no fim do jogo / ao voltar ao título.
 
 **Aplicado em jogo:** velocidade 2X/4X/8X (ajusta `g_speed`) e MIRROR (espelha colunas por metade; double espelha as 10). **Ainda não aplicados** (só armazenados): VANISH, RANDOM VELOCITY/VANISH/STEP, NONSTEP, SYNCHRO/COUPLE/UNION. **Inferido:** índice/canal do beep (sfx 1, canal 2) e os nomes dos bits.
+
+## Atualização 41 — Ícones dos modificadores
+
+**Confirmado (ELF `func_21915`, chamada por `func_2be94`, `func_2c840` e `func_24de6`, ou seja, MODE SELECT, roda de músicas e gameplay; `func_21885` = translate(x,y) + sprite + translate de volta):** os ícones vêm do `ARROW541.SP2` (o índice do original é o tile − 1), x = 4 (P1) / 600 (P2), y para cima: speed 2X/4X/8X `accel_` (y 240) ou random step `raccel` (240); vanish (200) ou random vanish `v_rand` (200); mirror (160); random velocity `random` (120); nonstep `nonstp` (80). Flags de modo: `sync__` (0x1000) ou `couple` (0x2000) em (4, 280), sem batalha. Em double só o jogador que entrou mostra os ícones.
+Teste: `-mod 0x2f4` liga modificadores em P1/P2.

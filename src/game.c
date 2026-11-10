@@ -712,6 +712,28 @@ static void tile_up(ResSet *rs, const SprTile *t, float ox, float oy)         /*
     Tex *tx = rs_tex(rs, t->file); if (!tx) return;
     quad(tx, ox + t->x, oy + t->y, t->w, t->h, t->u0 / tx->w, t->v1 / tx->h, t->u1 / tx->w, t->v0 / tx->h);
 }
+/* Icones dos modificadores (FUN_21915 = func_21915, chamada pela roda/modo e pela gameplay; FUN_21885 = translate + sprite do ARROW541 + translate de volta).
+ * x = 4 (P1) / 600 (P2), y para cima; sprites do ARROW541 (indice do original = tile - 1): speed 0x1B accel (y 240) | random step 0x32 raccel (240), vanish 0x1A (200) | random vanish 0x23 v_rand (200),
+ * mirror 0x19 (160), random velocity 0x20 random (120), nonstep 0x1F nonstp (80); flags de modo: 0x1000 sync 0x18 e 0x2000 couple 0x1E em (4, 280), so sem batalha.
+ * Em double so o jogador que entrou mostra (0x21A5B). Cor branca. */
+static void draw_mods(void)
+{
+    static const struct { int m; const char *tag; float y; } L[] = {
+        { 0x00e, "accel_", 240 }, { 0x200, "raccel", 240 }, { 0x010, "vanish", 200 }, { 0x100, "v_rand", 200 },
+        { 0x020, "mirror", 160 }, { 0x040, "random", 120 }, { 0x080, "nonstp", 80 } };
+    if (!g_sp541) return;
+    glColor4f(1, 1, 1, 1);
+    glPushMatrix(); glTranslatef(0, 480, 0); glScalef(1, -1, 1);
+    if (g_mfx & 0x1000) { const SprTile *t = sp2_find_x(g_sp541, "sync__"); if (t) tile_up(&g_arrow, t, 4, 280); }
+    if (g_mfx & 0x2000) { const SprTile *t = sp2_find_x(g_sp541, "couple"); if (t) tile_up(&g_arrow, t, 4, 280); }
+    for (int p = 0; p < 2; p++) {
+        if (!((g_sflag >> p) & 1) && g_state != S_PLAY) continue;
+        if (g_state == S_PLAY && !g_two && p != (((g_sflag & 3) == 2) ? 1 : 0)) continue;
+        for (unsigned i = 0; i < sizeof L / sizeof *L; i++) if (g_mod[p] & L[i].m) {
+            const SprTile *t = sp2_find_x(g_sp541, L[i].tag); if (t) tile_up(&g_arrow, t, p ? 600.f : 4.f, L[i].y); }
+    }
+    glPopMatrix();
+}
 static void draw_play(void)
 {
     int32_t pos = g_pos_cache; PiuClock ck = clock_for(g_slot_cache);
@@ -1491,6 +1513,7 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "-skip")) skip = 1;
         else if (!strcmp(argv[i], "-conf") && i + 1 < argc) conf_start = atoi(argv[++i]);
         else if (!strcmp(argv[i], "-mode") && i + 1 < argc) mode_start = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "-mod") && i + 1 < argc) { g_mod[0] = (int)strtol(argv[++i], NULL, 0); g_mod[1] = g_mod[0]; g_mfx = 0x2000; }       /* teste: modificadores de P1/P2 */
         else if (!strcmp(argv[i], "-wheel") && i + 1 < argc) wheel_start = atoi(argv[++i]);
         else if (!strcmp(argv[i], "-wdir") && i + 1 < argc) wheel_dir = atoi(argv[++i]);
         else if (!strcmp(argv[i], "-service") && i + 1 < argc) svc_start = atoi(argv[++i]) + 1;
@@ -1612,6 +1635,7 @@ int main(int argc, char **argv)
         set_view(); glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT); glColor4f(1, 1, 1, 1);
         if (g_state >= S_IDLE) draw_attract();
         else if (g_state == S_MODE) draw_mode(); else if (g_state == S_MCONF) draw_mconf(); else if (g_state == S_WHEEL) draw_wheel(); else if (g_state == S_LOAD) draw_load(); else if (g_state == S_END) draw_end(); else if (g_state == S_SELECT) draw_select(); else if (g_state == S_PLAY) draw_play(); else draw_result();
+        if (g_state == S_MODE || g_state == S_WHEEL || g_state == S_PLAY) draw_mods();
         if (g_service) svc_draw();
         if (autotest && shotpath && SDL_GetTicks() + 150 > t_end) {
             uint8_t *px = (uint8_t *)malloc((size_t)g_winw * g_winh * 3); FILE *f = fopen(shotpath, "wb");
