@@ -339,3 +339,7 @@ SDL2+OpenGL 1.x. `PiuReconstructed.exe`/`jogar.bat`. Seleção (STAGE.CFG + TITL
 - Com a flag REMIX (0x100): `DL UL DL C UR DR UR C` (func_2a88a) e (flag&3)!=3 (so 1 jogador): flag &= 0xF00F, |= 0x200 (REMIXDB), grupo (DAT_006E1784) = 4, refaz a lista (FUN_2B70B). `C DL C DR C DL C DR` (func_2a8c4) e fase == 6: flag |= 0x800 (REMIXCZ), grupo = 6, refaz a lista. Em teclas (Z=DL, C=DR, Q=UL, E=UR, S=centro): REMIXDB = Z Q Z S E C E S; REMIXCZ = S Z S C S Z S C.
 - Outros codigos da mesma tabela (nao implementados): `C x8` limpa flags (&0xFFF); varios alternam bits de opcao de jogo (DAT 0x83CAEAA: 0x10, 0x20, 0x8, 0x4, 0x2, 0x40, 0x80, 0x100/0x200) e bits 0x1000/0x2000/0x4000 da flag de modo.
 - game.c: `wheel_code` (historico de 8 toques, so com modo REMIX) troca a secao e refaz a lista.
+
+## Atualizacao 28 - preview da musica na roda (empirico)
+- Ao apontar um cartaz na roda de musicas (UL/UR = Q/E, numpad 7/9) toca o preview `AUDIO\Dxxx.AUD` da musica apontada (xxx = id do STAGE.CFG); repetir o mesmo lado (confirma) nao reinicia; sair da roda para a selecao para o preview. **Inferido/empirico**: a rotina original que dispara o preview ainda nao foi localizada no PIU.EXE (nao confirmado se rolar tambem muda o preview).
+- game.c: `music_load_pfx("D", id)` em `S_WHEEL`.

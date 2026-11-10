@@ -381,18 +381,19 @@ static void sfx_play(int idx, int ch)
     if (!g_adev || idx < 0 || idx >= 35 || !g_sfx[idx].pcm || ch < 0 || ch > 7) return;
     SDL_LockAudioDevice(g_adev); g_sv[ch].b = &g_sfx[idx]; g_sv[ch].pos = 0; SDL_UnlockAudioDevice(g_adev);
 }
-static int music_load(int id)
+static int music_load_pfx(const char *pfx, int id)
 {
     free(g_mus.pcm); memset((void *)&g_mus, 0, sizeof g_mus);
-    char p[300]; path_of(p, sizeof p, "AUDIO/%03d.AUD", id);
+    char p[300]; path_of(p, sizeof p, "AUDIO/%s%03d.AUD", pfx, id);
     size_t len; int ok = 0; uint8_t *mp3 = piu_unpack_file(p, &len, &ok);
     if (!mp3) return 0;
     drmp3_config cfg = { 2, (drmp3_uint32)g_arate }; drmp3_uint64 frames = 0;
     drmp3_int16 *pcm = drmp3_open_memory_and_read_pcm_frames_s16(mp3, len, &cfg, &frames, NULL);
     free(mp3);
     if (!pcm) return 0;
-    g_mus.pcm = pcm; g_mus.frames = frames; logf_("musica %03d: %.1f s (adler %s)\n", id, (double)frames / g_arate, ok ? "ok" : "BAD"); return 1;
+    g_mus.pcm = pcm; g_mus.frames = frames; logf_("musica %s%03d: %.1f s (adler %s)\n", pfx, id, (double)frames / g_arate, ok ? "ok" : "BAD"); return 1;
 }
+static int music_load(int id) { return music_load_pfx("", id); }
 static uint32_t g_t0;     /* inicio (SDL ticks) quando nao ha audio */
 static void music_start(void) { g_mus.pos = 0; g_mus.cb_pos = 0; g_mus.cb_ticks = SDL_GetTicks(); g_mus.playing = 1; g_t0 = SDL_GetTicks(); }
 static void music_stop(void) { g_mus.playing = 0; }
@@ -1030,6 +1031,7 @@ static void wheel_step(void)
     }
     if (!((g_m_prev == g_m_dir && g_m_prev != -1 && g_m_dir < 2) || remain < 1)) { g_m_anim++; g_m_frame++; g_m_t0++; return; }
     if (g_m_dir == -1 || g_m_dir > 1) g_m_dir = 0;
+    music_stop();                                     /* fim do preview (Dxxx.AUD) ao escolher */
     g_sel = w_song(g_m_dir);                          /* DAT_006E17A0 = lado escolhido; fase 7 (nao lida ainda): lista antiga de dificuldade */
     sfx_play(SFX_ENTER, 3);                                    /* 0x2CDE3: FUN_30FAC idx 4 canal 3 */
     g_m_frame = 0; g_state = S_SELECT;
@@ -1205,8 +1207,10 @@ int main(int argc, char **argv)
                     if (k == SDLK_ESCAPE) {}
                     else if (k == SDLK_z || k == SDLK_KP_1 || k == SDLK_LEFT) mode_press(2);        /* mesmas teclas da escolha de modo */
                     else if (k == SDLK_c || k == SDLK_KP_3 || k == SDLK_RIGHT) mode_press(3);
-                    else if (k == SDLK_q || k == SDLK_KP_7) mode_press(0);
-                    else if (k == SDLK_e || k == SDLK_KP_9) mode_press(1);
+                    else if (k == SDLK_q || k == SDLK_KP_7 || k == SDLK_e || k == SDLK_KP_9) {
+                        int d = (k == SDLK_q || k == SDLK_KP_7) ? 0 : 1, old = g_m_dir; mode_press(d);
+                        if (g_m_dir == d && g_m_anim == 0 && old != d && music_load_pfx("D", g_songs[w_song(d)].id)) music_start();   /* UL/UR: preview Dxxx.AUD do cartaz apontado (empirico) */
+                    }
                     else if (k == SDLK_RETURN || k == SDLK_SPACE) mode_confirm();
                 } else if (g_state == S_MODE) {
                     if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); g_state = S_IDLE; }
