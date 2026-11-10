@@ -1,0 +1,2 @@
+// Icone do piu.exe (id 1 = icone da janela SDL2 no Windows). Gerado a partir de icon.png por tools/make_icon.py
+1 ICON "../icon.ico"
