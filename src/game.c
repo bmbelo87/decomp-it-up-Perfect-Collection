@@ -1034,7 +1034,18 @@ static void wheel_step(void)
     music_stop();                                     /* fim do preview (Dxxx.AUD) ao escolher */
     g_sel = w_song(g_m_dir);                          /* DAT_006E17A0 = lado escolhido; fase 7 (nao lida ainda): lista antiga de dificuldade */
     sfx_play(SFX_ENTER, 3);                                    /* 0x2CDE3: FUN_30FAC idx 4 canal 3 */
-    g_m_frame = 0; g_state = S_SELECT;
+    g_m_frame = 0;
+    /* Fase 7 (FUN_2CDFA): escolhe o arquivo de passos pelas flags de modo e entra direto na gameplay ("run %s %s %d"). Nao ha outra tela de selecao.
+     * Flags: EASY 0x10, HARD 0x20, REMIX 0x100, DOUBLE 0x80, CRAZY 0x400, REMIXDB 0x200 (secao 4), REMIXCZ 0x800 (secao 6). 1P: 0x100|0x20 -> H1, 0x400|0x800 -> H3, resto E1;
+     * 2P ((flag&3)==3): 0x100|0x20 -> H2, 0x400|0x800 -> H4, resto E2; DOUBLE/REMIXDB (0x280) -> DB. (ramo 0x4000 de batalha nao tratado.) */
+    { static const int F[7] = { 0, 0x10, 0x20, 0x100, 0x80, 0x40, 0x400 };
+      int fl = F[g_m_sel], two = (g_sflag & 3) == 3, di;
+      if (g_m_sel == 3 && g_w_sec == 4) fl = 0x200; else if (g_w_sec == 6) fl = 0x800;
+      if (fl & 0x280) di = 6;
+      else if (fl == 0x100 || fl == 0x20) di = two ? 4 : 1;
+      else if (fl == 0x400 || fl == 0x800) di = two ? 5 : 2;
+      else di = two ? 3 : 0;
+      bga_unload(&g_ab); bga_unload(&g_ab2); g_state = S_SELECT; start_song(di); }       /* sem grafico: se faltar o arquivo, cai na tela antiga */
 }
 static void draw_wheel(void)
 {

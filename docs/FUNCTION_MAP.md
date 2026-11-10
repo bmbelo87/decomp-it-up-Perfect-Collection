@@ -343,3 +343,8 @@ SDL2+OpenGL 1.x. `PiuReconstructed.exe`/`jogar.bat`. Seleção (STAGE.CFG + TITL
 ## Atualizacao 28 - preview da musica na roda (empirico)
 - Ao apontar um cartaz na roda de musicas (UL/UR = Q/E, numpad 7/9) toca o preview `AUDIO\Dxxx.AUD` da musica apontada (xxx = id do STAGE.CFG); repetir o mesmo lado (confirma) nao reinicia; sair da roda para a selecao para o preview. **Inferido/empirico**: a rotina original que dispara o preview ainda nao foi localizada no PIU.EXE (nao confirmado se rolar tambem muda o preview).
 - game.c: `music_load_pfx("D", id)` em `S_WHEEL`.
+
+## Atualizacao 29 - fase 7: da roda direto para a gameplay
+- Confirmado (ELF func_2cdfa = FUN_2CDFA, fase 7 de 0xB): pega a musica (lista DAT_006E1782 + indice, FUN_2B09D), para a musica (FUN_294B9), monta o nome do passo por flags de modo (0x81206d2 / DOS DAT_0012B028) com `%d_E1/H1/H3/E2/H2/H4/DB.STF` e chama FUN_2058F ("run %s %s %d"). Nao ha tela de selecao de dificuldade: o **nivel** e o modo escolhido antes (EASY/HARD/REMIX/DOUBLE/CRAZY), a roda lista so as musicas da secao, e confirmar entra na gameplay.
+- Regra: DOUBLE/REMIXDB -> DB; 1P: HARD/REMIX -> H1, CRAZY/REMIXCZ -> H3, senao E1; 2P: HARD/REMIX -> H2, CRAZY/REMIXCZ -> H4, senao E2. Ramo flag 0x4000 (batalha, %d_H1/E1 + "-S") nao tratado.
+- game.c: `wheel_step` chama `start_song(di)`; a tela antiga S_SELECT so serve de fallback se faltar o arquivo.
