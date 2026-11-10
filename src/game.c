@@ -605,7 +605,7 @@ static BgaRun g_ab, g_ab2;
 static const SprTile *sp2_find_x(const Spr *s, const char *tag);
 static void tile_up(ResSet *rs, const SprTile *t, float ox, float oy);
 static void goto_idle(void);
-static void end_start(int ph) { music_stop(); if (!g_eb.ok) bga_load_name(&g_eb, "83"); g_ph = ph; g_pc = 0; g_endkey = 0; g_state = S_END; }
+static void end_start(int ph) { if (ph == PH_BREAK) music_stop(); if (!g_eb.ok) bga_load_name(&g_eb, "83"); g_ph = ph; g_pc = 0; g_endkey = 0; g_state = S_END; }
 static void wheel_enter(void);
 static void end_over(void) { end_start(PH_OVER); }
 static float end_life(void) { float m = g_ps[0].life / 1000.0f; if (g_two && g_ps[1].life / 1000.0f > m) m = g_ps[1].life / 1000.0f; return m; }
@@ -1339,6 +1339,7 @@ static void wheel_begin(void)
 static Tex g_ldtex; static int g_ldn, g_ldt;
 static void wheel_enter(void)
 {
+    music_stop();                                                      /* FUN_2C63F chama func_294b9 (parar musica) ao entrar na roda */
     int n = g_stage; if (n < 1) { wheel_begin(); return; }            /* 0x2C663: DAT 0x81206CE (estagios jogados) == 0 -> sem tela LOAD (FUN_2B695, vindo do modo) */
     if (n == 1) { time_t tt = time(NULL); struct tm *lt = localtime(&tt); if (lt && (lt->tm_year + 1900) * 10000 + (lt->tm_mon + 1) * 100 + lt->tm_mday > 20001227) n = 4; }   /* FUN_2D3DF: apos 27/12/2000 o anuncio (LOAD1) e trocado por LOAD4 */
     if (n > 4) n = 4;
