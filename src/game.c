@@ -793,20 +793,48 @@ static void font_number(float x, float y, int v)
     char s[16]; snprintf(s, sizeof s, "%d", v);
     for (const char *p = s; *p; p++, x += 12) font_blit(x, y, 16 * (*p - '0'), 96, 16 * (*p - '0') + 16, 112, 1);
 }
-static void draw_title_overlay(void)            /* FUN_00020134 */
+static void title_digits(float x, float y, int v)          /* FUN_000200E3 (func_200e3): digitos de FONT (16x16, u=(d%16)/16, v=96+(d/16)*16), da direita para a esquerda, passo -12, ao menos 1; y para cima */
+{
+    Tex *ft = rs_tex(&g_arrow, "font.tga"); if (!ft) return;
+    do {
+        int d = v % 10; v /= 10; float u0 = (d % 16) * 16.f, v0 = 96.f + (d / 16) * 16.f;
+        quad(ft, x, y, 16, 16, u0 / ft->w, (v0 + 16) / ft->h, (u0 + 16) / ft->w, v0 / ft->h); x -= 12;
+    } while (v);
+}
+static void draw_title_overlay(void)            /* FUN_00020134 (func_20134): creditos / free play e PRESS CENTER STEP / INSERT COIN, em y-para-cima */
 {
     int t = (int)(g_tick % 200);
     float blink = fabsf((float)(t - 100)) * 0.01f + 0.2f;   /* FUN_000C7BD0: |(t%200-100)|*0.01 + 0.2 */
-    if (!g_freeplay) {
-        font_blit(250, 452, 2, 49, 86, 73, 1);
-        font_number(345, 454, g_coins / g_cpc);
+    const SprTile *tl;
+    glColor4f(1, 1, 1, 1);
+    glPushMatrix(); glTranslatef(0, 480, 0); glScalef(1, -1, 1);
+    if (g_freeplay) {
+        if ((tl = sp2_find_x(g_sp542, "freeply"))) { glPushMatrix(); glTranslatef(320, 13, 0); tile_up(&g_arrow, tl, 0, 0); glPopMatrix(); }      /* 0x83C7B86 em (0x140, 0x0D) */
+    } else {
+        /* sem free play: credit(s) em (263, 22) + creditos em (360, 25); com moeda parcial: credit em (239, 22), creditos (338,25), '(' (354,21), restante (358,25), '/' (372,21),
+         * moedas por credito (388|378, 25) e ')' (400|390, 21). Tiles credit/left__/right_/slash_ do ARROW541. */
+        int cpc = g_cpc ? g_cpc : 1, q = g_coins / cpc, r = g_coins % cpc;
+        if (r == 0) {
+            if ((tl = sp2_find_x(g_sp541, "credit"))) tile_up(&g_arrow, tl, 263, 22);
+            title_digits(360, 25, q);
+        } else {
+            if ((tl = sp2_find_x(g_sp541, "credit"))) tile_up(&g_arrow, tl, 239, 22);
+            title_digits(338, 25, q);
+            if ((tl = sp2_find_x(g_sp541, "left__"))) tile_up(&g_arrow, tl, 354, 21);
+            title_digits(358, 25, r);
+            if ((tl = sp2_find_x(g_sp541, "slash_"))) tile_up(&g_arrow, tl, 372, 21);
+            title_digits(cpc >= 10 ? 388 : 378, 25, cpc);
+            if ((tl = sp2_find_x(g_sp541, "right_"))) tile_up(&g_arrow, tl, cpc >= 10 ? 400 : 390, 21);
+        }
     }
     for (int p = 0; p < 2; p++) {
         if (g_sflag & (1 << p)) continue;
-        /* FUN_00020134 (estado 0x14): FUN_21885(x, y=0x16 para cima, id): 0x25 PRESS CENTER STEP em x=0xE / 0x198; 0x24 INSERT COIN em x=0x30 / 0x1A8 */
-        if (cred_avail()) font_blit(p ? 408 : 14, 480 - 22 - 21, 1, 74, 228, 95, blink);
-        else font_blit(p ? 424 : 48, 480 - 22 - 24, 91, 49, 253, 73, blink);
+        /* FUN_21885(x, 0x16, tile): press_ (0x25) em x=14 / 408; insert (0x24) em x=48 / 424 */
+        glColor4f(1, 1, 1, blink);
+        if (cred_avail()) { if ((tl = sp2_find_x(g_sp541, "press_"))) tile_up(&g_arrow, tl, p ? 408.f : 14.f, 22); }
+        else if ((tl = sp2_find_x(g_sp541, "insert"))) tile_up(&g_arrow, tl, p ? 424.f : 48.f, 22);
     }
+    glPopMatrix(); glColor4f(1, 1, 1, 1);
 }
 /* ------------------------------------------------------------------ menu de SERVICE (PIU.EXE: FUN_0002e4d4 despacha DAT_0012cb80 = tela 0..8)
  * Botoes originais: TEST = DAT_00153718==0x10000 (mover), SERVICE = 0x20000 (selecionar/sair). Aqui: F2 = TEST, F1 = SERVICE.

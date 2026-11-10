@@ -392,3 +392,7 @@ Confirmado no ELF e igual no DOS (FUN_22FD8 tem os mesmos desvios). Coordenadas 
 - `start_song` agora escreve uma linha de log (stderr): musica, passo, sflag, modo, secao.
 
 - Vida piscando (func_23a4b, confirmado): o preenchimento `gauge__` so e desenhado nos quadros em que `0x83C627A % 2 != 0` (contador de quadros a 60 Hz), o alerta `gauge_D` nos pares (com vida<180). game.c: `fr = now*60/1000` no bloco HUD. O 60 Hz e inferido do contador por quadro do original.
+
+## Atualizacao 36 - tela de titulo: creditos / FREE PLAY e PRESS CENTER STEP (ELF func_20134)
+- Confirmado: o titulo desenha tiles de SP2 (nao um recorte da FONT, que incluia o "(" ao lado): FREE PLAY = tile `freeply` (ARROW542) em (320, 13); com creditos: `credit` (ARROW541) em (263,22) + numero em x=360 (y=25); com moeda parcial (coins % moedas_por_credito != 0): `credit` em 239, creditos em 338, `left__` "(" em (354,21), resto em 358, `slash_` em (372,21), moedas por credito em 388 (>=10) ou 378, `right_` ")" em 400/390. Numeros = `func_200e3`: digitos de FONT 16x16 (u=(d%16)/16, v=96+(d/16)*16), passo -12, da direita para a esquerda. PRESS CENTER STEP = `press_` em x=14 / 408, INSERT COIN = `insert` em 48 / 424 (y=22), alfa piscando.
+- game.c: `draw_title_overlay` / `title_digits`.
