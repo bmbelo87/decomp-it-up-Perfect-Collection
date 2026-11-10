@@ -1075,6 +1075,20 @@ static void draw_mode(void)
     bga_draw(&g_ab, 30);
     glColor4f(1, 1, 0, 1); textf(584, 480 - 429 - 16, 2, "%d", remain < 0 ? 0 : remain);   /* FUN_0002A672 (numero do tempo): formato nao lido, texto provisorio */
     glColor4f(1, 1, 1, 1);
+    /* func_2B958: textos de cada jogador acima dos circulos SHIFT, camadas do 099.BGA (mt01..mt08, MT10/MT11) no quadro base + anim%30:
+     * P1: ja entrou -> camada 13 (apontando: 14, base 420) base 360; sem credito 11 base 240; com credito 12 base 300. P2: 17 (18 apontando) base 360 / 15 base 240 / 16 base 300.
+     * (ramo double 0x280: camadas 19/20 base 510 - nao tratado) */
+    {
+        int n30 = g_m_anim % 30, aim = g_m_dir != -1;
+        for (int pl = 0; pl < 2; pl++) {
+            int joined = (g_sflag >> pl) & 1, layer, base;
+            if (joined) { layer = pl ? (aim ? 18 : 17) : (aim ? 14 : 13); base = aim ? 420 : 360; }
+            else if (cred_avail()) { layer = pl ? 16 : 12; base = 300; }
+            else { layer = pl ? 15 : 11; base = 240; }
+            bga_draw_n(&g_ab, base + n30, layer);
+        }
+    }
+    glColor4f(1, 1, 1, 1);
     for (int e = 2; e <= 3; e++) {                             /* setas SHIFT: camadas 0x1B/0x1C e 0x1E/0x1F no quadro 90 + anim */
         int c = (g_m_dir == e && g_m_anim < 0x3c) ? g_m_anim : 0;
         if (e == 2) { bga_draw_n(&g_ab, c + 90, 0x1b); bga_draw_n(&g_ab, c + 90, 0x1c); } else { bga_draw_n(&g_ab, c + 90, 0x1e); bga_draw_n(&g_ab, c + 90, 0x1f); }
