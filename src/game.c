@@ -473,7 +473,7 @@ static int chart_path(char *out, size_t sz, int id, int d)
 }
 
 /* ------------------------------------------------------------------ jogo */
-enum { S_SELECT, S_PLAY, S_RESULT, S_MODE, S_MCONF, S_WHEEL, S_LOAD, S_END, S_WLOAD, S_IDLE, S_LOGO, S_INTRO, S_TITLE, S_VIEW };   /* original: DAT_00153710 = 0 idle, 0xD/0xE logo, 0x10/0x11 intro, 0x13/0x14 title, 0xB selecao */
+enum { S_PLAY, S_MODE, S_MCONF, S_WHEEL, S_LOAD, S_END, S_WLOAD, S_IDLE, S_LOGO, S_INTRO, S_TITLE, S_VIEW };   /* original: DAT_00153710 = 0 idle, 0xD/0xE logo, 0x10/0x11 intro, 0x13/0x14 title, 0xB selecao */
 static int g_state = S_IDLE;
 static ResSet g_arrow;       /* BGA/00.DAT */
 static Spr *g_sp541, *g_sp542;
@@ -861,23 +861,6 @@ static void draw_play(void)
         }
         glPopMatrix();
     }
-}
-static void draw_result(void)
-{
-    glClearColor(0, 0, .1f, 1); glClear(GL_COLOR_BUFFER_BIT);
-    glColor4f(1, 1, 1, 1);
-    textc(320, 40, 4, g_fail ? "STAGE FAILED" : "STAGE CLEAR");
-    textf(150, 130, 2, "SONG   %s", g_songs[g_sel].title);
-    textf(150, 160, 2, "LEVEL  %s", DIFFN[g_diff]);
-    static const char *N[5] = { "PERFECT", "GREAT", "GOOD", "BAD", "MISS" };
-    for (int i = 0; i < 5; i++) textf(150, 210 + 30 * i, 2, "%-8s %4d", N[i], g_pl.cnt[i]);
-    textf(150, 380, 2, "MAX COMBO %d", g_maxcombo);
-    textf(150, 410, 2, "SCORE %07d", g_pl.score);
-    int tot = g_pl.cnt[0] + g_pl.cnt[1] + g_pl.cnt[2] + g_pl.cnt[3] + g_pl.cnt[4];
-    float acc = tot ? (g_pl.cnt[0] * 1.0f + g_pl.cnt[1] * 0.6f + g_pl.cnt[2] * 0.3f) / tot : 0;
-    const char *gr = g_fail ? "F" : acc > .95f ? "S" : acc > .85f ? "A" : acc > .7f ? "B" : acc > .5f ? "C" : "D";
-    textc(500, 200, 10, gr);
-    textc(320, 450, 1, "ENTER - VOLTAR");
 }
 /* ------------------------------------------------------------------ fluxo "attract" do PIU.EXE
  * Laco principal FUN_00020F37 (maquina de estados em DAT_00153710):
@@ -1491,32 +1474,6 @@ static void load_back(int id)
     size_t len; int ok; uint8_t *b = piu_unpack_file(p, &len, &ok);
     if (b) { g_backtex = tex_from_png(b, len); free(b); }
 }
-static int diffs_avail(int id, int *list)
-{
-    int n = 0; char p[300];
-    for (int d = 0; d < 7; d++) if (chart_path(p, sizeof p, id, d)) list[n++] = d;
-    return n;
-}
-static void draw_select(void)
-{
-    Song *s = &g_songs[g_sel]; load_back(s->id);
-    glColor4f(1, 1, 1, 1);
-    if (g_ab.ok) { bga_draw(&g_ab2, g_m_frame % 90); bga_draw(&g_ab, g_m_frame < 500 ? g_m_frame : 500); }      /* fundo do modo (09x) + 098 */
-    else if (g_backtex.id) quad(&g_backtex, 0, 0, 640, 480, 0, 0, 1, 1); else { glClearColor(0, 0, .15f, 1); glClear(GL_COLOR_BUFFER_BIT); }
-    glDisable(GL_TEXTURE_2D); glColor4f(0, 0, 0, 0.65f); quad(NULL, 0, 330, 640, 150, 0, 0, 0, 0); glColor4f(1, 1, 1, 1);
-    int dl[7], nd = diffs_avail(s->id, dl); if (g_dsel >= nd) g_dsel = nd ? nd - 1 : 0;
-    textf(20, 340, 3, "%03d %s", s->id, s->title);
-    textf(20, 380, 2, "BPM %.1f   SPEED x%d (1-8)", s->bpm, g_speed);
-    for (int i = 0; i < nd; i++) {
-        glColor4f(i == g_dsel ? 1 : .6f, i == g_dsel ? .9f : .6f, i == g_dsel ? .2f : .6f, 1);
-        textf(20 + 74 * i, 410, 1, "%s%s", i == g_dsel ? ">" : " ", DIFFN[dl[i]]);
-    }
-    glColor4f(1, 1, 1, 1);
-    textf(20, 440, 1, "UP/DOWN musica  LEFT/RIGHT nivel  ENTER jogar  ESC sair");
-    textf(20, 455, 1, "P1: Z Q S E C   P2/Dbl: NUM1 NUM7 NUM5 NUM9 NUM3");
-    if (g_state == S_SELECT && nd) { g_diff = dl[g_dsel]; }
-}
-
 static int key_to_col(SDL_Keycode k, int dbl)
 {
     switch (k) {
@@ -1584,7 +1541,6 @@ int main(int argc, char **argv)
     else { const PiuResEntry *e = piu_res_find(&g_arrow.res, "ARROW541.SP2"); if (e) g_sp541 = spr_parse(e->data, e->size); e = piu_res_find(&g_arrow.res, "ARROW542.SP2"); if (e) g_sp542 = spr_parse(e->data, e->size);
         g_spd[0] = g_sp542; g_spd[1] = g_sp541; const char *N3[3] = { "ARROW545.SP2", "ARROW543.SP2", "ARROW544.SP2" }; for (int k = 0; k < 3; k++) { e = piu_res_find(&g_arrow.res, N3[k]); if (e) g_spd[2 + k] = spr_parse(e->data, e->size); } }
     if (!g_nsongs) { logf_("STAGE.CFG sem musicas (%s)\n", g_dir); return 1; }
-    if (skip) g_state = S_SELECT;
     if (viewname) { bga_load_name(&g_ab, viewname); g_state = S_VIEW; }
     if (autostart >= 0) { for (int i = 0; i < g_nsongs; i++) if (g_songs[i].id == autostart) g_sel = i; start_song(autodiff); }
     uint32_t t_end = autotest ? SDL_GetTicks() + testsec * 1000 : 0; int running = 1;
@@ -1632,27 +1588,12 @@ int main(int argc, char **argv)
                     else if (k == SDLK_q || k == SDLK_KP_7) mode_press(0);
                     else if (k == SDLK_e || k == SDLK_KP_9) mode_press(1);
                     else if (k == SDLK_RETURN || k == SDLK_SPACE) mode_confirm();       /* atalho extra (nao e do original) */
-                } else if (g_state == S_SELECT) {
-                    int dl[7], nd = diffs_avail(g_songs[g_sel].id, dl);
-                    if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); bga_unload(&g_ab2); g_state = S_IDLE; }
-                    else if (k == SDLK_DOWN) { g_sel = (g_sel + 1) % g_nsongs;  sfx_play(SFX_MOVE, 4); }
-                    else if (k == SDLK_UP) { g_sel = (g_sel + g_nsongs - 1) % g_nsongs;  sfx_play(SFX_MOVE, 4); }
-                    else if (k == SDLK_RIGHT && nd) { g_dsel = (g_dsel + 1) % nd; sfx_play(SFX_MOVE, 4); }
-                    else if (k == SDLK_LEFT && nd) { g_dsel = (g_dsel + nd - 1) % nd; sfx_play(SFX_MOVE, 4); }
-                    else if (k == SDLK_PAGEDOWN) { g_sel = (g_sel + 10) % g_nsongs; sfx_play(SFX_MOVE, 4); }
-                    else if (k == SDLK_PAGEUP) { g_sel = (g_sel + g_nsongs - 10) % g_nsongs; sfx_play(SFX_MOVE, 4); }
-                    /* desativado: F1-F4 agora sao service/coin */ /* else if (k >= SDLK_F1 && k <= SDLK_F4) g_speed = 1 << (k - SDLK_F1); */
-                    /* desativado: F6-F9 (1,2,4,8) */ /* else if (k >= SDLK_F6 && k <= SDLK_F9) g_speed = 1 << (k - SDLK_F6); */
-                    else if (k >= SDLK_1 && k <= SDLK_8) g_speed = g_sbase = (int)(k - SDLK_0);   /* velocidade 1..8 */
-                    else if ((k == SDLK_RETURN || k == SDLK_KP_ENTER || k == SDLK_s || k == SDLK_KP_5) && nd) { sfx_play(SFX_ENTER, 3); start_song(dl[g_dsel]); }   /* 0x2C486: idx 4 canal 3 */
                 } else if (g_state == S_PLAY) {
                     if (k == SDLK_ESCAPE) { music_stop(); g_state = S_IDLE; }
                     else on_press(key_to_col(k, g_dbl || g_two));
                 } else if (g_state == S_END) {
                     if (k == SDLK_ESCAPE) { g_stage = 0; g_sflag = 0; mods_clear(); goto_idle(); }
                     else if (k == SDLK_s || k == SDLK_KP_5 || k == SDLK_RETURN || k == SDLK_KP_ENTER || k == SDLK_SPACE) g_endkey = 1;
-                } else if (g_state == S_RESULT) {
-                    if (k == SDLK_RETURN || k == SDLK_ESCAPE || k == SDLK_KP_ENTER || k == SDLK_s || k == SDLK_KP_5) goto_idle();   /* antes voltava a S_SELECT (tela antiga, desativada) */
                 }
             }
         }
@@ -1665,10 +1606,10 @@ int main(int argc, char **argv)
             play_update();
         }
         { uint32_t now = SDL_GetTicks(); acc += now - t_prev; t_prev = now; if (acc > 250) acc = 250;
-          while (acc >= 1000.0 / 60.0) { acc -= 1000.0 / 60.0; if (g_state >= S_IDLE) attract_step(); else if (g_state == S_MODE) mode_step(); else if (g_state == S_MCONF) mconf_step(); else if (g_state == S_WHEEL) wheel_step(); else if (g_state == S_LOAD) load_step(); else if (g_state == S_WLOAD) wload_step(); else if (g_state == S_END) end_step(); else if (g_state == S_SELECT && g_ab.ok) g_m_frame++; } }
+          while (acc >= 1000.0 / 60.0) { acc -= 1000.0 / 60.0; if (g_state >= S_IDLE) attract_step(); else if (g_state == S_MODE) mode_step(); else if (g_state == S_MCONF) mconf_step(); else if (g_state == S_WHEEL) wheel_step(); else if (g_state == S_LOAD) load_step(); else if (g_state == S_WLOAD) wload_step(); else if (g_state == S_END) end_step(); } }
         set_view(); glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT); glColor4f(1, 1, 1, 1);
         if (g_state >= S_IDLE) draw_attract();
-        else if (g_state == S_MODE) draw_mode(); else if (g_state == S_MCONF) draw_mconf(); else if (g_state == S_WHEEL) draw_wheel(); else if (g_state == S_LOAD) draw_load(); else if (g_state == S_WLOAD) draw_wload(); else if (g_state == S_END) draw_end(); else if (g_state == S_SELECT) draw_select(); else if (g_state == S_PLAY) draw_play(); else draw_result();
+        else if (g_state == S_MODE) draw_mode(); else if (g_state == S_MCONF) draw_mconf(); else if (g_state == S_WHEEL) draw_wheel(); else if (g_state == S_LOAD) draw_load(); else if (g_state == S_WLOAD) draw_wload(); else if (g_state == S_END) draw_end(); else if (g_state == S_PLAY) draw_play();
         if (g_state == S_MODE || g_state == S_WHEEL || g_state == S_PLAY) draw_mods();
         if (g_service) svc_draw();
         if (autotest && shotpath && SDL_GetTicks() + 150 > t_end) {
