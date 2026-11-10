@@ -373,3 +373,8 @@ Confirmado no ELF e igual no DOS (FUN_22FD8 tem os mesmos desvios). Coordenadas 
 - **Combo** (`func_21d11`): dentro da mesma escala, 70 px abaixo; 3 digitos de event.tga (32x48, v0=.375+(d/8)*.1875) com zeros a esquerda, passo -26 a partir de +10; so com combo>=4 (branco). Em seguida a serie de MISS (>=4) em azul (0.2,0.2,1), continuando a esquerda (a translacao nao e desfeita). O tile `combo_` existe no SP2 mas **nao e usado** no ELF nem no DOS durante o jogo (so os digitos).
 - NUM do ARROW542.SP2 diz 43 mas ha 45 tiles; `spr_parse` agora conta as linhas T. `sp2_find` compara so 6 letras (gauge_b/__/D colidem): usar `sp2_find_x`.
 - game.c: bloco HUD de `draw_play` (desenho em y-para-cima com `tile_up`). Nao tratado: icones de opcao (func_21915), tempo/credito (func_20134), modo batalha, 2 jogadores simultaneos.
+
+## Atualizacao 33 - sprites PATTERN do BGA (ELF func_2efad tipo 3, func_2f4ef)
+- Confirmado: `TYPE pattern a b c` (FUN_2F4EF): a -> [obj+0x24], b -> hi16 de [obj+0x28], c -> byte baixo. No desenho (tipo 3) a grade tem **c colunas x b linhas**, passo = (x+w, y+h) do tile 0 (translate x*coluna, linha*altura para baixo); indice do tile = `(a != 0 ? linha*c + coluna : b*coluna + linha) + (int)(n*(1-frac))` modulo n. Antes so se desenhava um tile (a Mobius Strip, 213, mostra 2x2 tiles 320x240 identicos).
+- Tipo 1 (TILE): os tiles sao desenhados do ultimo ao primeiro (ordem invertida, confirmado no laco que decrementa).
+- game.c: `Spr.pb/pc/a`, `bga_draw_n`.

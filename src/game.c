@@ -187,7 +187,7 @@ static void textf(float x, float y, float sc, const char *f, ...)
 
 /* ------------------------------------------------------------------ RES + sprites */
 typedef struct { char tag[10]; char file[28]; float x, y, w, h, u0, v0, u1, v1; } SprTile;
-typedef struct { int type, a, n; SprTile *t; } Spr;
+typedef struct { int type, a, n, pb, pc; SprTile *t; } Spr;      /* pattern a b c: a = ordem do indice (0 coluna-maior), pb = linhas, pc = colunas (FUN_2F4EF) */
 typedef struct { PiuRes res; Tex *tex; char **texname; int ntex; } ResSet;
 
 static int rs_open(ResSet *r, const char *path)
@@ -226,7 +226,11 @@ static Spr *spr_parse(const uint8_t *b, size_t len)
         if (!*l) continue;
         if (ln == 0) {
             if (strstr(l, "ANI") || strstr(l, "ani")) sp->type = 2;
-            else if (strstr(l, "PATTERN") || strstr(l, "pattern") || strstr(l, "pattren")) sp->type = 3;
+            else if (strstr(l, "PATTERN") || strstr(l, "pattern") || strstr(l, "pattren")) {
+                sp->type = 3;
+                const char *q = strstr(l, "PATTERN"); if (!q) q = strstr(l, "pattern"); if (!q) q = strstr(l, "pattren");
+                long long na = 0; int nb = 0, nc = 0; if (sscanf(q + 7, "%lld %d %d", &na, &nb, &nc) == 3) { sp->a = na != 0; sp->pb = nb; sp->pc = nc; }
+            }
             else sp->type = 0;
             sp->a = 0; ln++; continue;
         }
@@ -308,8 +312,15 @@ static void bga_draw_n(BgaRun *b, int frame, int only)   /* only >= 0: so a cama
         glColor4f(k.r, k.g, k.b, k.a);
         const Spr *s = b->spr[i];
         if (s->type == 2 && s->n) { int f = (int)(frac * s->n); if (f >= s->n) f = s->n - 1; draw_tile(&b->rs, &s->t[f], 0, 0); }
-        else if (s->type == 3 && s->n) draw_tile(&b->rs, &s->t[0], 0, 0);
-        else for (int t = 0; t < s->n; t++) draw_tile(&b->rs, &s->t[t], 0, 0);
+        else if (s->type == 3 && s->n) {
+            /* FUN_2EFAD tipo 3: grade pc colunas x pb linhas, passo = (x+w, y+h) do tile 0; indice = (a ? linha*pc+col : pb*col+linha + deslocamento) % n, deslocamento = (int)(n*(1-frac)) */
+            const SprTile *t0 = &s->t[0]; float sx = t0->x + t0->w, sy = t0->y + t0->h; int sh = (int)(s->n * (1.0f - frac));
+            for (int r = 0; r < s->pb || (!s->pb && r < 1); r++) for (int c = 0; c < s->pc || (!s->pc && c < 1); c++) {
+                int idx = ((s->a ? r * s->pc + c : s->pb * c + r) + sh) % s->n; if (idx < 0) idx += s->n;
+                draw_tile(&b->rs, &s->t[idx], c * sx, r * sy);
+            }
+        }
+        else for (int t = s->n - 1; t >= 0; t--) draw_tile(&b->rs, &s->t[t], 0, 0);      /* FUN_2EFAD tipo 1: do ultimo tile ao primeiro */
         glPopMatrix();
     }
     glColor4f(1, 1, 1, 1);
