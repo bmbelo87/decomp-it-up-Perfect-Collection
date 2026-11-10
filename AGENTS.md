@@ -16,7 +16,7 @@ Exemplo de achado so no ELF: codigos secretos REMIXDB / REMIXCZ (`func_2a72b`, t
 ## Regras de trabalho
 - Distinga **confirmado** (lido no codigo/dado) de **inferido**; marque inferencias nos comentarios e no doc.
 - "Desativar" codigo = envolver em `/* */`. Nao refatore sem pedido.
-- **Cada alteracao = 1 commit**; cena nova = +0.1.0 de versao (tag `v0.N.0`; atual v0.7.0). Mensagem termina com a linha `Co-Authored-By` definida pelo ambiente.
+- **Cada alteracao = 1 commit**; cena nova = +0.1.0 de versao (tag `v0.N.0`; atual v0.8.0). Mensagem termina com a linha `Co-Authored-By` definida pelo ambiente.
 - Documente cada descoberta em `docs/FUNCTION_MAP.md` (secao "Atualizacao N").
 - Teste: `build_msvc` (CMake/MSVC Release) gera `piu.exe`; copie para `game/PIUTESTE.EXE` (se "em uso", `PIUTESTE_NOVO.EXE`). Capturas: `-shot f.ppm -selftest SEG`, atalhos `-mode N`, `-conf N`, `-wheel N -wdir D`, `-service N`.
 - Entradas: P1 `Z Q S E C` (bits 1/2 azuis Z/C = rolar, 8/0x10 Q/E = apontar, S = centro), P2 numpad `1 7 5 9 3`; F1 service, F2 test, F3 coin clear, F4 moeda; 1-8 velocidade.

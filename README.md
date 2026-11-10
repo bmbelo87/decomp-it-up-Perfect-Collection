@@ -6,6 +6,10 @@
 
 Como jogar: dê dois cliques em `jogar.bat` (usa a pasta `..\game`). Ou: `PiuReconstructed.exe -game <pasta do jogo>`.
 
+## Downloads (Releases)
+Binarios para **Windows (x64)**, **Linux (x64)** e **macOS** sao gerados pelo GitHub Actions a cada tag `v*` (aba *Releases*). Os dados do jogo original (`PIU.EXE`, `BGA/`, `STEP/`, `AUDIO/`...) **nao** acompanham o projeto: aponte para a sua pasta com `-game <pasta>` (padrao: `../game`).
+- Linux: precisa de `libsdl2-2.0-0` (e driver OpenGL). macOS: `brew install sdl2`.
+
 ## Controles
 | | |
 |---|---|
