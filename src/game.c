@@ -1067,13 +1067,35 @@ static void mode_pulse(int id, int an)                       /* FUN_0002B459 */
         float f = p / S[q][0] + 1; glPushMatrix(); glScalef(f, f, 1); glColor4f(1, 1, 1, 1 - p / S[q][1]); bar_cell(id, 1); glPopMatrix(); }
     glPopMatrix(); glColor4f(1, 1, 1, 1);
 }
+static void orig_text(float x, float y, const char *str)       /* FUN_00026658 / FUN_00026521: glifos 8x15 de FONT.PNG (32 por linha, celula 8x15, ASCII-0x20, espaco nao desenha), passo 8, y para cima */
+{
+    Tex *ft = rs_tex(&g_arrow, "font.tga"); if (!ft) return;
+    glPushMatrix(); glTranslatef(0, 480, 0); glScalef(1, -1, 1);
+    for (const char *q = str; *q; q++, x += 8) {
+        int c = (unsigned char)*q; if (c <= 0x20 || c > 0x7f) continue;
+        c -= 0x20; float u = (c % 32) * 8.f, v = (c / 32) * 15.f;
+        quad(ft, x, y, 8, 15, u / ft->w, (v + 15) / ft->h, (u + 8) / ft->w, v / ft->h);
+    }
+    glPopMatrix();
+}
+static void orig_time(BgaRun *b, int n)                       /* FUN_0002A672(584, 429, n): 2 digitos de 02.TGA (celulas 48x40, 5 por linha, v0 = 162 + (d/5)*40), da direita p/ esquerda, passo -40 */
+{
+    Tex *t = b->ok ? rs_tex(&b->rs, "02.tga") : NULL; if (!t) return;
+    if (n < 0) n = 0;
+    glPushMatrix(); glTranslatef(0, 480, 0); glScalef(1, -1, 1); glColor4f(1, 1, 1, 1);
+    for (int i = 0; i < 2; i++) {
+        int d = n % 10; n /= 10; float u = (d % 5) * 48.f, v = 162.f + (d / 5) * 40.f;
+        quad(t, 584.f - 40 * i, 429, 48, 40, u / t->w, (v + 40) / t->h, (u + 48) / t->w, v / t->h);
+    }
+    glPopMatrix();
+}
 static void draw_mode(void)
 {
     int remain = 30 - g_m_t0 / 60, local = 0;
     static const int HL[7] = { 0, 3, 1, 2, 4, 6, 5 };          /* DAT_006E1778 -> camada (0x2BDDA..) */
     bga_draw_n(&g_ab, 600 + g_m_frame % 90, HL[g_m_sel]);       /* camada de destaque do modo no quadro 600..689 */
     bga_draw(&g_ab, 30);
-    glColor4f(1, 1, 0, 1); textf(584, 480 - 429 - 16, 2, "%d", remain < 0 ? 0 : remain);   /* FUN_0002A672 (numero do tempo): formato nao lido, texto provisorio */
+    orig_time(&g_ab, remain);                                    /* FUN_0002A672 */
     glColor4f(1, 1, 1, 1);
     /* func_2B958: textos de cada jogador acima dos circulos SHIFT, camadas do 099.BGA (mt01..mt08, MT10/MT11) no quadro base + anim%30:
      * P1: ja entrou -> camada 13 (apontando: 14, base 420) base 360; sem credito 11 base 240; com credito 12 base 300. P2: 17 (18 apontando) base 360 / 15 base 240 / 16 base 300.
@@ -1236,10 +1258,10 @@ static void draw_wheel(void)
         bga_draw_n(&g_ab, 0x96, 0x23); bga_draw_n(&g_ab, 0x96, 0x2b); bga_draw_n(&g_ab, 0x96, 0x2c);
         cover_slot(0, 0); cover_slot(1, 0); cover_slot(g_m_dir, g_m_anim);
         glColor4f(1, 1, 1, 1);
-        textf(0x128, 480 - 0x63 - 8, 1, "%5.1f", g_songs[w_song(g_m_dir)].bpm);      /* FUN_2C5CA: "%5.1f" em (0x128, 0x63) */
-        textf(0x130, 480 - 0x46 - 8, 1, "%d", g_sec[g_w_sec][g_w_list[w_idx(g_m_dir)]].lv);      /* nivel (byte1 da entrada = 2o campo de "S nivel id"), "%d" em (0x130,0x46) */
+        { char b[32]; snprintf(b, sizeof b, "%5.1f", g_songs[w_song(g_m_dir)].bpm); orig_text(0x128, 0x63, b);      /* FUN_2C5CA: "%5.1f" em (0x128, 0x63), y para cima */
+          snprintf(b, sizeof b, "%d", g_sec[g_w_sec][g_w_list[w_idx(g_m_dir)]].lv); orig_text(0x130, 0x46, b); }      /* nivel, "%d" em (0x130,0x46) (inferido da fase anterior) */
     }
-    glColor4f(1, 1, 0, 1); textf(584, 480 - 429 - 16, 2, "%d", remain < 0 ? 0 : remain);       /* FUN_0002A672 (numero do tempo): formato nao lido, texto provisorio */
+    orig_time(&g_ab, remain);                                      /* FUN_0002A672 */
     glColor4f(1, 1, 1, 1);
 }
 static void draw_attract(void)

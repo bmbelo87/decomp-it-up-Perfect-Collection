@@ -400,3 +400,8 @@ Confirmado no ELF e igual no DOS (FUN_22FD8 tem os mesmos desvios). Coordenadas 
 ## Atualizacao 37 - textos dos jogadores no MODE SELECT (ELF func_2b958, chamada por func_2bd93)
 - Confirmado: sao camadas do 099.BGA (mt01..mt08, MT10/MT11) desenhadas por `func_2647a(obj, camada, quadro)` com quadro = base + (anim % 30). Tabelas 0x81221EB.. (camadas 13,14,12,11,19,17,18,16,15,20) e 0x8122213.. (bases 360,420,300,240,510). P1: ja entrou -> camada 13 base 360 (apontando: 14 base 420); nao entrou com credito -> 12 base 300 ("PRESS CENTER STEP TO JOIN"); sem credito -> 11 base 240 ("NOT READY! PLEASE INSERT COIN(S)"). P2: 17 (18 apontando) / 16 / 15. Ramo double (0x280): camadas 19/20 base 510 ("PLEASE WAIT") - nao tratado. O numero do TEMPO (func_2a672, x=584 y=429) ainda e texto provisorio (os digitos amarelos estao na 03.PNG do 099.DAT).
 - game.c: bloco novo em `draw_mode`.
+
+## Atualizacao 38 - BPM/LEVEL e TIME com a fonte original (func_26658/26521, func_2a672/2a590)
+- Texto (func_26658(x, y, fmt, ...)): glifos de FONT.PNG com celulas **8x15** (32 por linha; u=(c-0x20)%32*8, v=(c-0x20)/32*15), quad de 8x15 com **y para cima** (a base fica em y, o topo em y+15), passo 8, espaco nao desenha. BPM `%5.1f` em (0x128, 0x63), nivel `%d` em (0x130, 0x46) (inferido). Antes usavamos a fonte 8x8 com a base em 480-y, que ficava baixa.
+- TIME (func_2a672(584, 429, n)): 2 digitos de **02.TGA do proprio BGA (099/098)**, celulas 48x40, 5 por linha, v0 = 162 + (d/5)*40, quad 48x40 em (584 - 40*i, 429) y para cima, zeros a esquerda.
+- game.c: `orig_text`, `orig_time`.
