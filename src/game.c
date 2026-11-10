@@ -515,18 +515,20 @@ static void judge_grade(int p, int g)
     g_lg[p] = g; g_lgt[p] = SDL_GetTicks();
 }
 static int g_pos_cache, g_slot_cache;
+static int g_w_sec, g_m_sel;
 static void start_song(int di)
 {
     Song *s = &g_songs[g_sel]; char p[300];
     if (!chart_path(p, sizeof p, s->id, di) || piu_chart_load(p, &g_chart)) return;
+    logf_("start_song: musica %d passo %s (%s) sflag=%d modo=%d secao=%d\n", s->id, DIFFS[di], p, g_sflag, g_m_sel, g_w_sec);
     g_song = s->id; g_diff = di; g_dbl = di == 6; g_two = di >= 3 && di <= 5;      /* DB = double (1 jogador, 10 colunas); E2/H2/H4 = couple */
-    for (int r = 0; r < PIU_ROWS && !g_dbl && !g_two; r++) for (int c = 5; c < 10; c++) if (g_chart.cell[r * PIU_ROWSTRIDE + c] == '9') g_dbl = 1;
+    /* (antes: notas nas colunas 5-9 ligavam g_dbl. Errado: 514_H1/403_H1/505_H3 trazem as duas metades e o jogo de 1 jogador so usa as colunas 0-4.) */
     memset(g_ps, 0, sizeof g_ps);
     for (int i = 0; i < 2; i++) { g_ps[i].life = 500; g_ps[i].life_rate = 500; g_ps[i].modifier = -700; }     /* 0x24AC0..0x24B2D */
     piu_windows(g_chart.bpm[0], &g_win_);
     g_lrp[0] = g_lrp[1] = 0; g_prevrow = 0; g_f1p[0] = g_f1p[1] = 0; g_fail = 0; g_maxcombo = 0; g_lg[0] = g_lg[1] = 0;
     g_notes_total = 0;
-    for (int r = 0; r < PIU_ROWS; r++) if (row_max(r, 0, 10) == '9') g_notes_total++;
+    for (int r = 0; r < PIU_ROWS; r++) if (row_max(r, 0, (g_two || g_dbl) ? 10 : 5) == '9') g_notes_total++;
     memset(g_pressed, 0, sizeof g_pressed); memset(g_flashuntil, 0, sizeof g_flashuntil); for (int i = 0; i < 10; i++) g_pt[i] = g_ft[i] = 0x80000000u;
     bga_unload(&g_bga); bga_load(&g_bga, s->id);
     music_load(s->id);
@@ -539,7 +541,7 @@ static void on_press(int col)       /* 0x24100..0x242B7 */
     g_pressed[col] = 1; g_flashuntil[col] = SDL_GetTicks() + 120; g_pt[col] = SDL_GetTicks();
     int32_t pos = music_pos(); int slot = slot_for(pos); PiuClock ck = clock_for(slot);
     int row = piu_row_now(&ck, pos, 0); if (row < g_prevrow) row = g_prevrow;
-    int pl = g_two ? col / 5 : 0, lo = g_two ? pl * 5 : 0, hi = g_two ? lo + 5 : 10;
+    int pl = g_two ? col / 5 : 0, lo = g_two ? pl * 5 : 0, hi = g_two ? lo + 5 : (g_dbl ? 10 : 5);
     if (ck.n > 2 && row_max(row, lo, hi) < '9') row++;                   /* 0x23FAD */
     if (row < g_lrp[pl]) row = g_lrp[pl];
     uint8_t *cell = &g_chart.cell[row * PIU_ROWSTRIDE + col];
@@ -557,7 +559,7 @@ static void play_update(void)
     if (row != g_prevrow && row > 0) {                                  /* 0x243E8: linha passou */
         int pr = row - 1;
         for (int pl = 0; pl < (g_two ? 2 : 1); pl++) {
-            int lo = g_two ? pl * 5 : 0, hi = g_two ? lo + 5 : 10;
+            int lo = g_two ? pl * 5 : 0, hi = g_two ? lo + 5 : (g_dbl ? 10 : 5);
             if (!g_f1p[pl] && row_max(pr, lo, hi) != '0') {
                 if (row_max(pr, lo, hi) == '9') judge_grade(pl, PIU_MISS);
             }
@@ -659,8 +661,9 @@ static void draw_play(void)
             if ((t = sp2_find_x(s542, "gauge__"))) {
                 Tex *tx = rs_tex(&g_arrow, t->file);
                 if (tx) {
-                    float xa = slot ? 0.f : (float)(253 - 6 * q), xb = slot ? (float)(6 * q + 2) : 256.f;
-                    if (xb > xa) quad(tx, xa, 0, xb - xa, 32, (t->u0 + xa) / tx->w, (t->v0 + 32) / tx->h, (t->u0 + xb) / tx->w, t->v0 / tx->h);
+                    if (!slot) { float xa = (float)(253 - 6 * q); quad(tx, xa, 0, 256 - xa, 32, (t->u0 + xa) / tx->w, (t->v0 + 32) / tx->h, (t->u0 + 256) / tx->w, t->v0 / tx->h); }
+                    else { float xb = (float)(6 * q + 3);      /* P2 = espelho do P1: faixa [0, 256-(253-6q)] com a textura invertida em x (vermelho na borda de dentro) */
+                        quad(tx, 0, 0, xb, 32, (t->u0 + 256) / tx->w, (t->v0 + 32) / tx->h, (t->u0 + 256 - xb) / tx->w, t->v0 / tx->h); }
                 }
             }
             glPopMatrix();

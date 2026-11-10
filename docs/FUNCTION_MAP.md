@@ -385,3 +385,8 @@ Confirmado no ELF e igual no DOS (FUN_22FD8 tem os mesmos desvios). Coordenadas 
 - Dado (STEP/*.NOT, mascara bit15->col0 ... bit6->col9): `X1` (E1/H1/H3) so tem as colunas 0-4; `X2` (E2/H2/H4) tem **as duas metades**: com 2 jogadores o ELF carrega **um unico arquivo** (`%d_H2.STF`, func_2cdfa) e o P1 joga as colunas 0-4 e o P2 as 5-9 (em 101 a metade esquerda de H2 = H1). Nao sao dois arquivos. 1 jogador (P1 ou P2) -> X1; 2 jogadores -> X2; CRAZY: H3 (1P) / H4 (2P); DOUBLE (0x280): DB.
 - game.c: `g_two` (couple) separado de `g_dbl` (DB). Couple usa dois campos (x0 = 28 e 348), dois `PiuPlayer` (`g_ps[2]`), vida/score/julgamento por jogador; P1 = Z Q S E C, P2 = numpad; termina quando os dois zeram. Antes H2 era tratado como double (campo em 66/311, um so jogador).
 - Sincronia: `cb_pos` e a posicao ja entregue ao dispositivo; a posicao ouvida e menor. `music_pos` agora subtrai 2 blocos de audio (`g_alat_ms`, ~46 ms) e o ajuste manual `-aoff MS` (positivo atrasa as setas).
+
+## Atualizacao 35 - ULTRAMANIA (514) e vida do P2
+- Dado: `514_H1`, `403_H1` e `505_H3` (arquivos de 1 jogador) trazem notas nas colunas 5-9 (em 514, H1 = H2, as duas metades). O original decide single/double/couple **so pelas flags de modo**; com 1 jogador so as colunas 0-4 sao jogadas. A heuristica antiga (qualquer nota em 5-9 liga o double) foi removida e as colunas 5-9 so entram em DB (double) e no couple.
+- Vida do P2: espelho do P1 (faixa [0, 6q+3] com a textura invertida em x; vermelho na borda de dentro, perto do centro).
+- `start_song` agora escreve uma linha de log (stderr): musica, passo, sflag, modo, secao.
