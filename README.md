@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="LogoIA.png" alt="PiuReconstructed" width="720">
+</p>
+
 # PiuReconstructed — Pump It Up (PIU.EXE, DOS, "Dec 18 2000") recompilado em C
 
 Como jogar: dê dois cliques em `jogar.bat` (usa a pasta `..\game`). Ou: `PiuReconstructed.exe -game <pasta do jogo>`.
