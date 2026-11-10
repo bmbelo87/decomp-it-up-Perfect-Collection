@@ -338,6 +338,7 @@ typedef struct { const SfxBuf *b; uint32_t pos; } SfxVoice;
 static SfxBuf g_sfx[35]; static SfxVoice g_sv[8];
 typedef struct { int16_t *pcm; uint64_t frames; volatile uint64_t pos; int playing; uint32_t cb_ticks; uint64_t cb_pos; } Music;
 static Music g_mus; static SDL_AudioDeviceID g_adev; static int g_arate = 44100;
+static double g_alat_ms, g_aoff_ms;     /* latencia do buffer de audio (cb_pos e o fim do bloco ja entregue ao dispositivo) e ajuste manual (-aoff MS) */
 static void SDLCALL audio_cb(void *u, Uint8 *st, int len)
 {
     (void)u; int16_t *o = (int16_t *)st; int n = len / 4;
@@ -357,7 +358,7 @@ static void audio_init(void)
 {
     SDL_AudioSpec w, h; SDL_zero(w); w.freq = 44100; w.format = AUDIO_S16SYS; w.channels = 2; w.samples = 1024; w.callback = audio_cb;
     g_adev = SDL_OpenAudioDevice(NULL, 0, &w, &h, 0);
-    if (g_adev) { g_arate = h.freq; sfx_load(); SDL_PauseAudioDevice(g_adev, 0); } else logf_("sem audio: %s\n", SDL_GetError());
+    if (g_adev) { g_arate = h.freq; g_alat_ms = 2000.0 * h.samples / h.freq; sfx_load(); SDL_PauseAudioDevice(g_adev, 0); } else logf_("sem audio: %s\n", SDL_GetError());
 }
 static void sfx_load(void)
 {
@@ -418,6 +419,7 @@ static int32_t music_pos(void)
     if (g_mus.pcm && g_adev) {
         ms = (double)g_mus.cb_pos * 1000.0 / g_arate + (SDL_GetTicks() - g_mus.cb_ticks);
         double maxms = (double)g_mus.pos * 1000.0 / g_arate; if (ms > maxms) ms = maxms;
+        ms -= g_alat_ms + g_aoff_ms; if (ms < 0) ms = 0;      /* posicao ouvida = posicao entregue - latencia (2 blocos) */
     } else ms = SDL_GetTicks() - g_t0;
     return (int32_t)(ms * 240.0 / 1000.0);
 }
@@ -471,15 +473,17 @@ static int g_sel = 0, g_dsel = 0, g_speed = 2;     /* velocidade 1..8 */
 static Tex g_backtex; static int g_backid = -1;
 
 static PiuChart g_chart;
-static PiuPlayer g_pl;
+static PiuPlayer g_ps[2];            /* [1] so no couple (modos de 2 jogadores: passos E2/H2/H4 com 10 colunas, cada jogador em 5) */
+#define g_pl g_ps[0]
+static int g_two;
 static PiuWindows g_win_;
 static int g_dbl, g_song, g_diff;
 static BgaRun g_bga;
-static int g_lastrow, g_prevrow, g_flag1, g_fail, g_maxcombo, g_endpos;
+static int g_lrp[2], g_f1p[2], g_prevrow, g_fail, g_maxcombo, g_endpos;
 static int g_pressed[10]; static uint32_t g_flashuntil[10], g_pt[10], g_ft[10];     /* g_pt: instante do toque (tiles p + pulso), g_ft: instante do acerto (tiles f) */
 static int g_sflag;
 static Spr *g_spd[5];            /* SP2 por direcao: DL ARROW542, UL 541, centro 545, UR 543, DR 544 (func_221a4: 0x83C7226/83C9FAA/83C907E/83C8152/83C62FA) */
-static int g_lastgrade = 0; static uint32_t g_lastgrade_t;
+static int g_lg[2]; static uint32_t g_lgt[2];
 static int g_notes_total;
 
 static int slot_for(int32_t pos)       /* 0x23E69: troca de BPM por tempo (centesimos) */
@@ -501,25 +505,26 @@ static int row_max(int row, int c0, int c1)     /* 0x22F21/0x22F5D/0x22F9C */
     for (int c = c0; c < c1; c++) if (g_chart.cell[row * PIU_ROWSTRIDE + c] > m) m = g_chart.cell[row * PIU_ROWSTRIDE + c];
     return m;
 }
-static void judge_grade(int g)
+static void judge_grade(int p, int g)
 {
-    piu_apply_judgment(&g_pl, g);
-    if (g_pl.life > 1000) g_pl.life = 1000;
-    if (g_pl.life < 0) g_pl.life = 0;
-    if (g_pl.combo > g_maxcombo) g_maxcombo = g_pl.combo;
-    g_lastgrade = g; g_lastgrade_t = SDL_GetTicks();
+    PiuPlayer *P = &g_ps[p];
+    piu_apply_judgment(P, g);
+    if (P->life > 1000) P->life = 1000;
+    if (P->life < 0) P->life = 0;
+    if (P->combo > g_maxcombo) g_maxcombo = P->combo;
+    g_lg[p] = g; g_lgt[p] = SDL_GetTicks();
 }
 static int g_pos_cache, g_slot_cache;
 static void start_song(int di)
 {
     Song *s = &g_songs[g_sel]; char p[300];
     if (!chart_path(p, sizeof p, s->id, di) || piu_chart_load(p, &g_chart)) return;
-    g_song = s->id; g_diff = di; g_dbl = di >= 3;
-    for (int r = 0; r < PIU_ROWS && !g_dbl; r++) for (int c = 5; c < 10; c++) if (g_chart.cell[r * PIU_ROWSTRIDE + c] == '9') g_dbl = 1;
-    memset(&g_pl, 0, sizeof g_pl);
-    g_pl.life = 500; g_pl.life_rate = 500; g_pl.modifier = -700;     /* 0x24AC0..0x24B2D */
+    g_song = s->id; g_diff = di; g_dbl = di == 6; g_two = di >= 3 && di <= 5;      /* DB = double (1 jogador, 10 colunas); E2/H2/H4 = couple */
+    for (int r = 0; r < PIU_ROWS && !g_dbl && !g_two; r++) for (int c = 5; c < 10; c++) if (g_chart.cell[r * PIU_ROWSTRIDE + c] == '9') g_dbl = 1;
+    memset(g_ps, 0, sizeof g_ps);
+    for (int i = 0; i < 2; i++) { g_ps[i].life = 500; g_ps[i].life_rate = 500; g_ps[i].modifier = -700; }     /* 0x24AC0..0x24B2D */
     piu_windows(g_chart.bpm[0], &g_win_);
-    g_lastrow = 0; g_prevrow = 0; g_flag1 = 0; g_fail = 0; g_maxcombo = 0; g_lastgrade = 0;
+    g_lrp[0] = g_lrp[1] = 0; g_prevrow = 0; g_f1p[0] = g_f1p[1] = 0; g_fail = 0; g_maxcombo = 0; g_lg[0] = g_lg[1] = 0;
     g_notes_total = 0;
     for (int r = 0; r < PIU_ROWS; r++) if (row_max(r, 0, 10) == '9') g_notes_total++;
     memset(g_pressed, 0, sizeof g_pressed); memset(g_flashuntil, 0, sizeof g_flashuntil); for (int i = 0; i < 10; i++) g_pt[i] = g_ft[i] = 0x80000000u;
@@ -534,15 +539,16 @@ static void on_press(int col)       /* 0x24100..0x242B7 */
     g_pressed[col] = 1; g_flashuntil[col] = SDL_GetTicks() + 120; g_pt[col] = SDL_GetTicks();
     int32_t pos = music_pos(); int slot = slot_for(pos); PiuClock ck = clock_for(slot);
     int row = piu_row_now(&ck, pos, 0); if (row < g_prevrow) row = g_prevrow;
-    if (ck.n > 2 && row_max(row, 0, 10) < '9') row++;                   /* 0x23FAD */
-    if (row < g_lastrow) row = g_lastrow;
+    int pl = g_two ? col / 5 : 0, lo = g_two ? pl * 5 : 0, hi = g_two ? lo + 5 : 10;
+    if (ck.n > 2 && row_max(row, lo, hi) < '9') row++;                   /* 0x23FAD */
+    if (row < g_lrp[pl]) row = g_lrp[pl];
     uint8_t *cell = &g_chart.cell[row * PIU_ROWSTRIDE + col];
     if (*cell != '9') return;
     int d = (row * 60) / ck.n - piu_c18(&ck, pos);
     *cell = (uint8_t)piu_classify(&g_win_, d);
     if (*cell >= '5' && *cell <= '7') g_ft[col] = SDL_GetTicks();       /* tiles f1..f8 (func_22502); quais julgamentos disparam = inferido */
-    int m = row_max(row, 0, 10);
-    if (row > g_lastrow && m >= '5' && m <= '8') { judge_grade(m); g_flag1 = 1; g_lastrow = row; }
+    int m = row_max(row, lo, hi);
+    if (row > g_lrp[pl] && m >= '5' && m <= '8') { judge_grade(pl, m); g_f1p[pl] = 1; g_lrp[pl] = row; }
 }
 static void play_update(void)
 {
@@ -550,14 +556,17 @@ static void play_update(void)
     int row = piu_row_now(&ck, pos, 0); if (row < g_prevrow) row = g_prevrow;
     if (row != g_prevrow && row > 0) {                                  /* 0x243E8: linha passou */
         int pr = row - 1;
-        if (!g_flag1 && row_max(pr, 0, 10) != '0') {
-            if (row_max(pr, 0, 10) == '9') judge_grade(PIU_MISS);
+        for (int pl = 0; pl < (g_two ? 2 : 1); pl++) {
+            int lo = g_two ? pl * 5 : 0, hi = g_two ? lo + 5 : 10;
+            if (!g_f1p[pl] && row_max(pr, lo, hi) != '0') {
+                if (row_max(pr, lo, hi) == '9') judge_grade(pl, PIU_MISS);
+            }
+            if (g_lrp[pl] < row) g_f1p[pl] = 0;
         }
-        if (g_lastrow < row) g_flag1 = 0;
         g_prevrow = row;
     }
     g_pos_cache = pos; g_slot_cache = slot;
-    if (g_pl.life <= 0 && !g_fail) g_fail = 1;
+    if (g_ps[0].life <= 0 && (!g_two || g_ps[1].life <= 0) && !g_fail) g_fail = 1;      /* couple: acaba quando os dois zeram */
     int endrow = g_endpos + 8;
     if (g_fail || (row > endrow && pos > 240) || (g_mus.pcm && g_mus.pos >= g_mus.frames && row > g_endpos)) {
         music_stop(); g_state = S_RESULT;
@@ -595,7 +604,7 @@ static void draw_play(void)
     int frame = pos / 4; if (frame < 0) frame = 0;
     glColor4f(1, 1, 1, 1); bga_draw(&g_bga, frame);
     glColor4f(1, 1, 1, 1);
-    float c14 = (float)piu_c14(&ck, pos); int ncols = g_dbl ? 10 : 5;
+    float c14 = (float)piu_c14(&ck, pos); int ncols = (g_dbl || g_two) ? 10 : 5;
     /* Campo (FUN_24DE6 -> func_22674/226ad/226f9, translate (x0, 378) em y-para-cima): P1 x0=28, P2 x0=348; double 66 e 311. Colunas a 48 px; receptores em (x0+35+48k, 413 de baixo = 67 do topo).
      * Notas: dy = (60*r/n - c14/240) * velocidade para baixo da linha (func_22840: t*v/240 - linha*v em y-para-cima). Camadas: receptor b1/b2 (221a4), p1..p8 (22386), f1..f8 (22502), notas n1..n6 (22840). */
     const float recY = 67.0f; uint32_t now = SDL_GetTicks();
@@ -634,17 +643,19 @@ static void draw_play(void)
     /* HUD (FUN_24DE6 -> func_22fd8 julgamento/combo, func_23a4b vida, func_21e47 + func_21885 score). Coordenadas do jogo em y-para-cima (como o original). */
     {
         Spr *s541 = g_sp541, *s542 = g_sp542; const SprTile *t;
-        int slot = (g_sflag & 3) == 2 ? 1 : 0;
+        int base_slot = (g_sflag & 3) == 2 ? 1 : 0;
         glColor4f(1, 1, 1, 1);
         glPushMatrix(); glTranslatef(0, 480, 0); glScalef(1, -1, 1);
+        for (int hp = 0; hp < (g_two ? 2 : 1); hp++) {
+        const PiuPlayer *P = &g_ps[hp]; int slot = g_two ? hp : base_slot;
         /* vida: gauge_b (moldura) em (32|352, 445); preenchimento gauge__ por faixas de 6 px: n=(int)(v*256), q=n/6; P1 revela x in [253-6q,256], P2 x in [0,6q+2]. v = vida/1000.
          * Perigo (vida<180): gauge_D amarelo piscando por tras (so com a opcao 0x86D6FC0 no original; aqui sempre) */
         {
-            float v = g_pl.life / 1000.0f; if (v < 0) v = 0; if (v > 1) v = 1;
+            float v = P->life / 1000.0f; if (v < 0) v = 0; if (v > 1) v = 1;
             int q = (int)(v * 256) / 6; float gx = slot ? 352.f : 32.f;
             glPushMatrix(); glTranslatef(gx, 445, 0);
             if ((t = sp2_find_x(s542, "gauge_b"))) tile_up(&g_arrow, t, 0, 0);
-            if (g_pl.life < 180 && (now / 33) % 2 == 0 && (t = sp2_find_x(s542, "gauge_D"))) { glColor4f(1, 1, 0, 1); tile_up(&g_arrow, t, 0, 0); glColor4f(1, 1, 1, 1); }
+            if (P->life < 180 && (now / 33) % 2 == 0 && (t = sp2_find_x(s542, "gauge_D"))) { glColor4f(1, 1, 0, 1); tile_up(&g_arrow, t, 0, 0); glColor4f(1, 1, 1, 1); }
             if ((t = sp2_find_x(s542, "gauge__"))) {
                 Tex *tx = rs_tex(&g_arrow, t->file);
                 if (tx) {
@@ -658,7 +669,7 @@ static void draw_play(void)
         {
             Tex *ft = rs_tex(&g_arrow, "font.tga");
             if (ft) {
-                int n = g_pl.score; if (n < 0) n = 0;
+                int n = P->score; if (n < 0) n = 0;
                 glPushMatrix(); glTranslatef(slot ? 573.f : 176.f, 16, 0);
                 for (int i = 0; i < 7; i++) {
                     int d = n % 10; n /= 10; float u = (d % 8) * 0.125f, vt = (d / 8) * 0.15234375f + 0.53125f;
@@ -671,18 +682,18 @@ static void draw_play(void)
         /* julgamento (func_22fd8): 25 quadros; escala de entrada tabela 0x81206EA+0x34 (idx 25-t para t>10); tile = perfec/great_/good__/bad___/miss__ pelo ultimo julgamento ('5'..'9').
          * Combo: 3 digitos de event.tga (celulas 32x48, v0 = .375 + (d/8)*.1875) a 70 px abaixo, passo -26, a partir de +10; branco se combo>=4, depois vermelho (1,0.2,0.2) se serie de MISS>=4 (continua a esquerda). */
         {
-            int jt = 25 - (int)((now - g_lastgrade_t) * 60 / 1000);
-            if (g_lastgrade >= '5' && g_lastgrade <= '9' && jt > 0) {
+            int jt = 25 - (int)((now - g_lgt[hp]) * 60 / 1000);
+            if (g_lg[hp] >= '5' && g_lg[hp] <= '9' && jt > 0) {
                 static const float JS[17] = { 1.52f, 1.43f, 1.35f, 1.28f, 1.21f, 1.15f, 1.1f, 1.06f, 1.03f, 1.01f, .99f, .98f, .97f, .98f, .99f, 1.0f, 1.0f };
                 static const char *const JN[5] = { "perfec", "great_", "good__", "bad___", "miss__" };
                 float sc = jt > 10 ? JS[25 - jt] : 1.0f;
                 glPushMatrix(); glTranslatef(g_dbl ? 320.f : slot ? 480.f : 160.f, 240, 0); glScalef(sc, sc, 1);
                 glColor4f(1, 1, 1, 1);
-                if ((t = sp2_find_x(s542, JN[g_lastgrade - '5']))) tile_up(&g_arrow, t, 0, 0);
+                if ((t = sp2_find_x(s542, JN[g_lg[hp] - '5']))) tile_up(&g_arrow, t, 0, 0);
                 glTranslatef(0, -70, 0);
                 Tex *et = rs_tex(&g_arrow, "event.tga");
                 for (int pass = 0; pass < 2 && et; pass++) {
-                    int n = pass == 0 ? g_pl.combo : g_pl.miss_streak; if (n < 4) continue;
+                    int n = pass == 0 ? P->combo : P->miss_streak; if (n < 4) continue;
                     if (pass == 1) glColor4f(1, 0.2f, 0.2f, 1);   /* glColor3f(push 0.2, 0.2, 1.0) = (r,g,b) (1.0, 0.2, 0.2): vermelho */
                     glTranslatef(10, 0, 0);
                     for (int i = 0; i < 3; i++) {
@@ -692,6 +703,7 @@ static void draw_play(void)
                 }
                 glPopMatrix(); glColor4f(1, 1, 1, 1);
             }
+        }
         }
         glPopMatrix();
     }
@@ -1271,6 +1283,7 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "-service") && i + 1 < argc) svc_start = atoi(argv[++i]) + 1;
         else if (!strcmp(argv[i], "-view") && i + 1 < argc) viewname = argv[++i];
         else if (!strcmp(argv[i], "-frame") && i + 1 < argc) g_bgaf = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "-aoff") && i + 1 < argc) g_aoff_ms = atof(argv[++i]);
         else if (!strcmp(argv[i], "-autostart1")) g_auto1 = 1;
         else if (!strcmp(argv[i], "-freeplay")) { g_freeplay = 1; g_cli_free = 1; }
         else if (!strcmp(argv[i], "-coins") && i + 1 < argc) g_coins = atoi(argv[++i]);
@@ -1362,7 +1375,7 @@ int main(int argc, char **argv)
                     else if ((k == SDLK_RETURN || k == SDLK_KP_ENTER || k == SDLK_s || k == SDLK_KP_5) && nd) { sfx_play(SFX_ENTER, 3); start_song(dl[g_dsel]); }   /* 0x2C486: idx 4 canal 3 */
                 } else if (g_state == S_PLAY) {
                     if (k == SDLK_ESCAPE) { music_stop(); g_state = S_IDLE; }
-                    else on_press(key_to_col(k, g_dbl));
+                    else on_press(key_to_col(k, g_dbl || g_two));
                 } else if (g_state == S_RESULT) {
                     if (k == SDLK_RETURN || k == SDLK_ESCAPE || k == SDLK_KP_ENTER || k == SDLK_s || k == SDLK_KP_5) goto_idle();   /* antes voltava a S_SELECT (tela antiga, desativada) */
                 }

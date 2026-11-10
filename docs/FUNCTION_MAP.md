@@ -380,3 +380,8 @@ Confirmado no ELF e igual no DOS (FUN_22FD8 tem os mesmos desvios). Coordenadas 
 - game.c: `Spr.pb/pc/a`, `bga_draw_n`.
 
 - Ordem de desenho dos receptores (func_221a4, confirmado): DL(x35), centro(x131), DR(x227), UR(x179), UL(x83), em tres passadas (b1/b2, p, f). Como sao sprites separados, Z/S/C ficam atras e Q/E na frente. game.c: `ORD` em `draw_play` (notas usam a mesma ordem; inferido).
+
+## Atualizacao 34 - couple (2 jogadores) e sincronia do audio
+- Dado (STEP/*.NOT, mascara bit15->col0 ... bit6->col9): `X1` (E1/H1/H3) so tem as colunas 0-4; `X2` (E2/H2/H4) tem **as duas metades**: com 2 jogadores o ELF carrega **um unico arquivo** (`%d_H2.STF`, func_2cdfa) e o P1 joga as colunas 0-4 e o P2 as 5-9 (em 101 a metade esquerda de H2 = H1). Nao sao dois arquivos. 1 jogador (P1 ou P2) -> X1; 2 jogadores -> X2; CRAZY: H3 (1P) / H4 (2P); DOUBLE (0x280): DB.
+- game.c: `g_two` (couple) separado de `g_dbl` (DB). Couple usa dois campos (x0 = 28 e 348), dois `PiuPlayer` (`g_ps[2]`), vida/score/julgamento por jogador; P1 = Z Q S E C, P2 = numpad; termina quando os dois zeram. Antes H2 era tratado como double (campo em 66/311, um so jogador).
+- Sincronia: `cb_pos` e a posicao ja entregue ao dispositivo; a posicao ouvida e menor. `music_pos` agora subtrai 2 blocos de audio (`g_alat_ms`, ~46 ms) e o ajuste manual `-aoff MS` (positivo atrasa as setas).
