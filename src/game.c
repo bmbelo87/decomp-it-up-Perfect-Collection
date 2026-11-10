@@ -220,6 +220,7 @@ static Spr *spr_parse(const uint8_t *b, size_t len)
     char *s = (char *)malloc(len + 1); memcpy(s, b, len); s[len] = 0;
     Spr *sp = (Spr *)calloc(1, sizeof *sp);
     char *save = NULL; int ln = 0; int sp2 = 0;
+    int ntl = 0; for (size_t k = 1; k + 1 < len; k++) if (b[k] == 'T' && b[k + 1] == ' ' && (b[k - 1] == '\n')) ntl++;
     for (char *l = strtok_s(s, "\r\n", &save); l; l = strtok_s(NULL, "\r\n", &save)) {
         while (*l == ' ' || *l == '\t') l++;
         if (!*l) continue;
@@ -229,7 +230,9 @@ static Spr *spr_parse(const uint8_t *b, size_t len)
             else sp->type = 0;
             sp->a = 0; ln++; continue;
         }
-        if (ln == 1) { char *p = l; while (*p && (*p < '0' || *p > '9')) p++; sp->n = atoi(p); sp->t = (SprTile *)calloc(sp->n + 1, sizeof(SprTile)); ln++; continue; }
+        if (ln == 1) { char *p = l; while (*p && (*p < '0' || *p > '9')) p++; sp->n = atoi(p);
+            if (ntl > sp->n) sp->n = ntl;      /* NUM do ARROW542 diz 43 mas ha 45 tiles */
+            sp->t = (SprTile *)calloc(sp->n + 1, sizeof(SprTile)); ln++; continue; }
         if (ln - 2 >= sp->n) break;
         char tok[11][48]; int nt = sscanf(l, "%47s %47s %47s %47s %47s %47s %47s %47s %47s %47s %47s",
             tok[0], tok[1], tok[2], tok[3], tok[4], tok[5], tok[6], tok[7], tok[8], tok[9], tok[10]);
@@ -565,6 +568,16 @@ static void draw_arrow(int col, float cx, float cy, int frame, int kind)   /* ki
     if (c5 == 0 || c5 == 4) { float tmp = v0; v0 = v1; v1 = tmp; }
     quad(t, cx - 27, cy - 27, 54, 54, u0, v0, u1, v1);
 }
+static const SprTile *sp2_find_x(const Spr *s, const char *tag)           /* nome exato (sp2_find compara so 6 letras: gauge_b/gauge__/gauge_D colidem) */
+{
+    for (int i = 0; s && i < s->n; i++) if (!strcmp(s->t[i].tag, tag)) return &s->t[i];
+    return NULL;
+}
+static void tile_up(ResSet *rs, const SprTile *t, float ox, float oy)         /* tile em coordenadas y-para-cima (dentro de glScalef(1,-1,1)): v invertido */
+{
+    Tex *tx = rs_tex(rs, t->file); if (!tx) return;
+    quad(tx, ox + t->x, oy + t->y, t->w, t->h, t->u0 / tx->w, t->v1 / tx->h, t->u1 / tx->w, t->v0 / tx->h);
+}
 static void draw_play(void)
 {
     int32_t pos = g_pos_cache; PiuClock ck = clock_for(g_slot_cache);
@@ -601,20 +614,70 @@ static void draw_play(void)
             if (g_chart.cell[r * PIU_ROWSTRIDE + col] == '9') draw_tile(&g_arrow, t, x0, y - 35.f);
         }
     }
-    /* HUD */
-    glDisable(GL_TEXTURE_2D);
-    float life = g_pl.life / 1000.0f; if (life < 0) life = 0;
-    int danger = g_pl.life < 180 && (SDL_GetTicks() / 120) % 2;
-    glColor4f(0, 0, 0, 0.6f); quad(NULL, 28, 440, 584, 20, 0, 0, 0, 0);
-    glColor4f(danger ? 1 : 0.2f, danger ? 0.2f : 0.9f, 0.3f, 1); quad(NULL, 32, 444, 576 * life, 12, 0, 0, 0, 0);
-    glColor4f(1, 1, 1, 1);
-    if (g_pl.combo > 1) { char b[32]; snprintf(b, sizeof b, "%d COMBO", g_pl.combo); textc(320, 330, 3, b); }
-    if (g_lastgrade && SDL_GetTicks() - g_lastgrade_t < 600) {
-        static const char *N[5] = { "PERFECT", "GREAT", "GOOD", "BAD", "MISS" };
-        static const float C[5][3] = { { 1, .9f, .2f }, { .3f, 1, .3f }, { .3f, .7f, 1 }, { 1, .5f, .2f }, { 1, .2f, .2f } };
-        int gi = g_lastgrade - '5'; glColor4f(C[gi][0], C[gi][1], C[gi][2], 1); textc(320, 290, 4, N[gi]); glColor4f(1, 1, 1, 1);
+    /* HUD (FUN_24DE6 -> func_22fd8 julgamento/combo, func_23a4b vida, func_21e47 + func_21885 score). Coordenadas do jogo em y-para-cima (como o original). */
+    {
+        Spr *s541 = g_sp541, *s542 = g_sp542; const SprTile *t;
+        int slot = (g_sflag & 3) == 2 ? 1 : 0;
+        glColor4f(1, 1, 1, 1);
+        glPushMatrix(); glTranslatef(0, 480, 0); glScalef(1, -1, 1);
+        /* vida: gauge_b (moldura) em (32|352, 445); preenchimento gauge__ por faixas de 6 px: n=(int)(v*256), q=n/6; P1 revela x in [253-6q,256], P2 x in [0,6q+2]. v = vida/1000.
+         * Perigo (vida<180): gauge_D amarelo piscando por tras (so com a opcao 0x86D6FC0 no original; aqui sempre) */
+        {
+            float v = g_pl.life / 1000.0f; if (v < 0) v = 0; if (v > 1) v = 1;
+            int q = (int)(v * 256) / 6; float gx = slot ? 352.f : 32.f;
+            glPushMatrix(); glTranslatef(gx, 445, 0);
+            if ((t = sp2_find_x(s542, "gauge_b"))) tile_up(&g_arrow, t, 0, 0);
+            if (g_pl.life < 180 && (now / 33) % 2 == 0 && (t = sp2_find_x(s542, "gauge_D"))) { glColor4f(1, 1, 0, 1); tile_up(&g_arrow, t, 0, 0); glColor4f(1, 1, 1, 1); }
+            if ((t = sp2_find_x(s542, "gauge__"))) {
+                Tex *tx = rs_tex(&g_arrow, t->file);
+                if (tx) {
+                    float xa = slot ? 0.f : (float)(253 - 6 * q), xb = slot ? (float)(6 * q + 2) : 256.f;
+                    if (xb > xa) quad(tx, xa, 0, xb - xa, 32, (t->u0 + xa) / tx->w, (t->v0 + 32) / tx->h, (t->u0 + xb) / tx->w, t->v0 / tx->h);
+                }
+            }
+            glPopMatrix();
+        }
+        /* score: 7 digitos amarelos (font.tga, celulas 32x39, v0 = 0.53125 + (d/8)*0.15234375), de tras para a frente, passo -24, em (176|573, 16); rotulo score_ em (14|560, 52) */
+        {
+            Tex *ft = rs_tex(&g_arrow, "font.tga");
+            if (ft) {
+                int n = g_pl.score; if (n < 0) n = 0;
+                glPushMatrix(); glTranslatef(slot ? 573.f : 176.f, 16, 0);
+                for (int i = 0; i < 7; i++) {
+                    int d = n % 10; n /= 10; float u = (d % 8) * 0.125f, vt = (d / 8) * 0.15234375f + 0.53125f;
+                    quad(ft, 0, 0, 32, 39, u, vt + 0.15234375f, u + 0.125f, vt); glTranslatef(-24, 0, 0);
+                }
+                glPopMatrix();
+            }
+            if ((t = sp2_find_x(s541, "score_"))) tile_up(&g_arrow, t, slot ? 560.f : 14.f, 52);
+        }
+        /* julgamento (func_22fd8): 25 quadros; escala de entrada tabela 0x81206EA+0x34 (idx 25-t para t>10); tile = perfec/great_/good__/bad___/miss__ pelo ultimo julgamento ('5'..'9').
+         * Combo: 3 digitos de event.tga (celulas 32x48, v0 = .375 + (d/8)*.1875) a 70 px abaixo, passo -26, a partir de +10; branco se combo>=4, depois azul (0.2,0.2,1) se serie de MISS>=4 (continua a esquerda). */
+        {
+            int jt = 25 - (int)((now - g_lastgrade_t) * 60 / 1000);
+            if (g_lastgrade >= '5' && g_lastgrade <= '9' && jt > 0) {
+                static const float JS[17] = { 1.52f, 1.43f, 1.35f, 1.28f, 1.21f, 1.15f, 1.1f, 1.06f, 1.03f, 1.01f, .99f, .98f, .97f, .98f, .99f, 1.0f, 1.0f };
+                static const char *const JN[5] = { "perfec", "great_", "good__", "bad___", "miss__" };
+                float sc = jt > 10 ? JS[25 - jt] : 1.0f;
+                glPushMatrix(); glTranslatef(g_dbl ? 320.f : slot ? 480.f : 160.f, 240, 0); glScalef(sc, sc, 1);
+                glColor4f(1, 1, 1, 1);
+                if ((t = sp2_find_x(s542, JN[g_lastgrade - '5']))) tile_up(&g_arrow, t, 0, 0);
+                glTranslatef(0, -70, 0);
+                Tex *et = rs_tex(&g_arrow, "event.tga");
+                for (int pass = 0; pass < 2 && et; pass++) {
+                    int n = pass == 0 ? g_pl.combo : g_pl.miss_streak; if (n < 4) continue;
+                    if (pass == 1) glColor4f(0.2f, 0.2f, 1, 1);
+                    glTranslatef(10, 0, 0);
+                    for (int i = 0; i < 3; i++) {
+                        int d = n % 10; n /= 10; float u = (d % 8) * 0.125f, vt = (d / 8) * 0.1875f + 0.375f;
+                        quad(et, 0, 0, 32, 48, u, vt + 0.1875f, u + 0.125f, vt); glTranslatef(-26, 0, 0);
+                    }
+                }
+                glPopMatrix(); glColor4f(1, 1, 1, 1);
+            }
+        }
+        glPopMatrix();
     }
-    textf(8, 8, 1, "SCORE %07d  %s %s  SPEED x%d", g_pl.score, g_songs[g_sel].title, DIFFN[g_diff], g_speed);
 }
 static void draw_result(void)
 {
