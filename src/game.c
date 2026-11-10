@@ -6,13 +6,21 @@
 #ifdef _WIN32
 #include <windows.h>
 #endif
+#ifdef __APPLE__
+#define GL_SILENCE_DEPRECATION
+#include <OpenGL/gl.h>
+#else
 #include <GL/gl.h>
+#endif
 #include <zlib.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <stdarg.h>
+#ifndef _WIN32
+#define strtok_s strtok_r      /* MSVC/C11 anexo K -> POSIX */
+#endif
 #define DR_MP3_IMPLEMENTATION
 #include "dr_mp3.h"
 #include "piu.h"
