@@ -1259,7 +1259,7 @@ static void draw_wheel(void)
         cover_slot(0, 0); cover_slot(1, 0); cover_slot(g_m_dir, g_m_anim);
         glColor4f(1, 1, 1, 1);
         { char b[32]; snprintf(b, sizeof b, "%5.1f", g_songs[w_song(g_m_dir)].bpm); orig_text(0x128, 0x63, b);      /* FUN_2C5CA: "%5.1f" em (0x128, 0x63), y para cima */
-          snprintf(b, sizeof b, "%d", g_sec[g_w_sec][g_w_list[w_idx(g_m_dir)]].lv); orig_text(0x130, 0x46, b); }      /* nivel, "%d" em (0x130,0x46) (inferido da fase anterior) */
+          snprintf(b, sizeof b, "%d", g_sec[g_w_sec][g_w_list[w_idx(g_m_dir)]].lv); orig_text(316.f - 4.f * (float)strlen(b), 0x46, b); }      /* centralizado no mesmo eixo do BPM (296 + 5*8/2 = 316) para 1 ou 2 digitos */      /* nivel, "%d" em (0x130,0x46) (inferido da fase anterior) */
     }
     orig_time(&g_ab, remain);                                      /* FUN_0002A672 */
     glColor4f(1, 1, 1, 1);
