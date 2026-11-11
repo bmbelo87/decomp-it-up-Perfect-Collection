@@ -1506,6 +1506,15 @@ static void set_view(void)
 
 int main(int argc, char **argv)
 {
+#ifdef _WIN32
+    {   /* sem janela de console (debug) junto com o jogo: libera o console se o stderr for ele proprio (duplo clique/jogar.bat). Com redirecao (testes/CI) ou -debug, mantem. */
+        extern __declspec(dllimport) void *__stdcall GetStdHandle(unsigned long);
+        extern __declspec(dllimport) unsigned long __stdcall GetFileType(void *);
+        extern __declspec(dllimport) int __stdcall FreeConsole(void);
+        int dbg = 0; for (int i = 1; i < argc; i++) if (!strcmp(argv[i], "-debug")) dbg = 1;
+        if (!dbg && GetFileType(GetStdHandle((unsigned long)-12)) == 2 /* FILE_TYPE_CHAR */) FreeConsole();
+    }
+#endif
     int end_test = 0, end_testc = 0; int wheel_start = 0, wheel_dir = -1, conf_start = 0, mode_start = 0, svc_start = 0, autostart = -1, autodiff = 1, autotest = 0, testsec = 6; const char *shotpath = NULL; int noauto = 0, skip = 0; const char *viewname = NULL;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-game") && i + 1 < argc) snprintf(g_dir, sizeof g_dir, "%s", argv[++i]);
