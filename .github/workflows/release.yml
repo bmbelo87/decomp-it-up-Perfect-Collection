@@ -47,10 +47,33 @@ jobs:
           cp README.md LogoIA.png icon.png pkg/
           cd pkg
           if [ "${{ runner.os }}" = "Windows" ]; then 7z a ../PiuReconstructed-${{ matrix.name }}.zip . ; else tar czf ../PiuReconstructed-${{ matrix.name }}.tar.gz . ; fi
-      - uses: actions/upload-artifact@v4
+      - name: Enviar artefato (tentativa 1)
+        id: up1
+        continue-on-error: true
+        timeout-minutes: 3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
           path: PiuReconstructed-${{ matrix.name }}.*
+          overwrite: true
+      - name: Enviar artefato (tentativa 2)
+        if: steps.up1.outcome == 'failure'
+        id: up2
+        continue-on-error: true
+        timeout-minutes: 3
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: PiuReconstructed-${{ matrix.name }}.*
+          overwrite: true
+      - name: Enviar artefato (tentativa 3)
+        if: steps.up1.outcome == 'failure' && steps.up2.outcome == 'failure'
+        timeout-minutes: 3
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: PiuReconstructed-${{ matrix.name }}.*
+          overwrite: true
   release:
     needs: build
     if: startsWith(github.ref, 'refs/tags/')
