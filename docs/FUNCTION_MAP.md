@@ -451,3 +451,11 @@ Teste: `-mod 0x2f4` liga modificadores em P1/P2.
 **Limpeza (pós‑Atualização 42):** removidos os restos de teste do início — a seleção de músicas básica (`S_SELECT`/`draw_select`/`diffs_avail`, argumento `-skip`) e a tela de resultado básica (`S_RESULT`/`draw_result`). A tela LOAD só aparece após o DANCE GRADE (nunca do MODE SELECT para a roda).
 
 **Música no fim da fase (Atualização 43, confirmado no ELF):** `func_24de6` só chama `func_294b9` (parar música) nos dois ramos do STAGE BREAK (fase 4). Em FAILED/CLEARED/DANCE GRADE/GAME OVER a música da própria canção **continua tocando** até acabar; só `func_2c63f` (entrada da roda) e o attract a param. Não existe arquivo de música próprio do resultado (só 001/002/003.AUD, usados em título/modo/demo). Antes o código parava a música ao terminar a canção.
+
+## Atualização 44 — Capas (CD) das músicas fora das 26 folhas: 112, 226, 329 e 330
+
+**Confirmado (ELF `func_2b609` carrega, `func_2ae17` desenha; DOS idem, tabela de 30 linhas × 40 bytes em ELF `0x8121C77`/DOS `piu_le.exe` 0xF11D1):** cada linha = ponteiro p/ nome da folha, handle da textura, 4 ids. O loader percorre **30 linhas** (`cmp edx,0x1e`), não 26. As linhas 26–29 têm ids só em posições específicas e **reaproveitam folhas**: 26 → `CD26.TGA` slot 1 = **226** (Another Heart 2nd), 27 → `CD26` slot 1 = **112** (Another Heart), 28 → **`CD06`** slot 3 = **329** (Extravaganza 3rd step, mesma imagem de 205), 29 → **`CD11`** slot 1 = **330** (Mix 2-7 3rd step). As linhas 0–25 usam `CD(n+1)`. Não existem CD27–CD30 na 90.DAT.
+
+Causa do bug (reportado em jogo: "Extravaganza 3rd" sem DISC): `CD_TBL` do `game.c` tinha só 26 linhas e o nome era sempre `CD%02d` da linha. Correção: `CD_TBL[30]` + `CD_SHEET[30]`. Observação: 112/226 caem no slot 1 de CD26, que (por inferência) pode ser uma imagem vazia/outra; o jogo original desenha o que a folha tiver.
+
+**Músicas "ocultas" (resumo da análise):** não há campo de ocultar; `func_2b70b` só lista entradas da seção com byte0 ≠ 0 (`func_2b695` põe tudo em 1 no 1º estágio; `func_2b6bc(seção,id)` zera a música jogada até o próximo crédito). Sem seção = oculta (408 "Kiss"); as `Mix` só existem em REMIX/REMIXDB/REMIXCZ. Ainda **não implementado**: ocultar a música já jogada no crédito.

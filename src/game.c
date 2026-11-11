@@ -1264,12 +1264,15 @@ static void draw_mode(void)
  * Mesma logica de entrada da escolha de modo: bits 8/0x10 apontam o cartaz esquerdo/direito (dir 0/1; repetir confirma), bits 1/2 rolam a roda
  * de 2 em 2 (dir 2/3, 22 quadros). Lista = ids de musica (DAT_006E0EE8 >> 16; aqui todas as do STAGE.CFG). Cada id e uma faixa de BARxx (FUN_2AFFF,
  * as mesmas da escolha de modo) e um recorte de capa CDxx.PNG da 90.DAT (FUN_2AE17/FUN_2AD1B: folhas 2x2 de 128x96, tabela 0x12C5D1). */
-static const int CD_TBL[26][4] = {
+static const int CD_TBL[30][4] = {
     { 101, 102, 103, 104 }, { 105, 106, 107, 108 }, { 109, 110, 111, 328 }, { 113, 114, 115, 116 }, { 117, 118, 119, 201 }, { 202, 203, 204, 205 },
     { 206, 207, 208, 210 }, { 211, 212, 213, 214 }, { 215, 216, 217, 218 }, { 219, 220, 221, 223 }, { 224, 225, 301, 302 }, { 303, 304, 305, 306 },
     { 307, 308, 309, 310 }, { 311, 312, 313, 314 }, { 315, 316, 317, 318 }, { 319, 320, 321, 322 }, { 323, 324, 325, 326 }, { 327, 401, 402, 403 },
     { 404, 405, 406, 407 }, { 408, 409, 410, 411 }, { 412, 413, 414, 415 }, { 501, 502, 503, 504 }, { 505, 506, 507, 508 }, { 509, 510, 511, 512 },
-    { 513, 514, 515, 516 }, { 517, 0, 0, 0 } };
+    { 513, 514, 515, 516 }, { 517, 0, 0, 0 },
+    /* linhas 26-29 (ELF 0x8121C7B/DOS idem; confirmado): ids em posicoes especificas e folha reaproveitada (CD_SHEET) */
+    { 0, 226, 0, 0 }, { 0, 112, 0, 0 }, { 0, 0, 0, 329 }, { 0, 330, 0, 0 } };
+static const int CD_SHEET[30] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 26, 26, 6, 11 };
 static int g_w_list[256], g_w_n, g_w_pos, g_w_sec;
 static int w_song(int k);
 static void wheel_list(void);
@@ -1355,8 +1358,8 @@ static void draw_wload(void) { glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER
 static int w_song(int k) { return g_sec[g_w_sec][g_w_list[w_idx(k)]].song; }
 static void cover_cell(int id)                               /* FUN_2AE17 + FUN_2AD1B: quadro 200x142 centrado, recorte (j%2, j/2) da folha */
 {
-    for (int r = 0; r < 26; r++) for (int j = 0; j < 4; j++) if (CD_TBL[r][j] == id) {
-        char nm[16]; snprintf(nm, sizeof nm, "CD%02d", r + 1);
+    for (int r = 0; r < 30; r++) for (int j = 0; j < 4; j++) if (CD_TBL[r][j] == id) {
+        char nm[16]; snprintf(nm, sizeof nm, "CD%02d", CD_SHEET[r]);
         Tex *tx = g_bars_ok ? rs_tex(&g_bars, nm) : NULL; if (!tx) return;
         int c = j % 2, w = j / 2;
         quad(tx, -100, -71, 200, 142, c * 0.5f, (w + 1) * 0.375f, (c + 1) * 0.5f, w * 0.375f);
