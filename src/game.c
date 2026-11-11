@@ -1002,6 +1002,10 @@ static const char *const SVC_COPT[4] = { "COIN SETTING", "DEFAULT SETTING", "SAV
 static const char *const SVC_SND[3] = { "AUDIO", "EFFECT SOUND", "EXIT" };
 static const char *const SVC_DATE[4] = { "YEAR", "MONTH", "DAY", "EXIT" };
 static void svc_open(void) { g_service = 1; g_svs = 0; g_svcur = 0; g_svrow = 0; }
+/* F1 (pedido do usuario, empirico): entrar no SERVICO fecha o que estiver ativo (gameplay, roda, titulo, fim de fase...): para a musica, descarrega os BGAs e zera
+ * jogadores/modificadores/estagio, como um reset. Ao sair do servico volta ao estado 0 (attract): com g_att=0 comeca pelo 81.DAT (logo/insert coin) e, com credito/FREE PLAY, pelo titulo. */
+static void svc_halt(void) { music_stop(); bga_unload(&g_eb); bga_unload(&g_ab); bga_unload(&g_ab2); g_sflag = 0; g_stage = 0; g_start1 = g_start2 = 0; mods_clear(); g_att = 0; g_state = S_IDLE; }
+static void svc_leave(void) { g_service = 0; music_stop(); bga_unload(&g_ab); bga_unload(&g_ab2); g_sflag = 0; g_stage = 0; mods_clear(); g_att = 0; g_state = S_IDLE; }
 static int svc_audio_id(int v) { return v < 3 ? v + 1 : g_songs[(v - 3) % g_nsongs].id; }     /* inferido: 001-003 e depois as musicas */
 static void svc_press(int test, int serv)      /* uma vez por aperto (DAT_00153718 e consumido a cada quadro no original) */
 {
@@ -1053,7 +1057,7 @@ static void svc_draw(void)
     char b[48];
     glDisable(GL_TEXTURE_2D); glColor4f(0, 0, 0, 1); glBegin(GL_QUADS); glVertex2f(0, 0); glVertex2f(640, 0); glVertex2f(640, 480); glVertex2f(0, 480); glEnd();
     glColor4f(1, 1, 1, 1);
-    if (g_svs == 8) { g_service = 0; return; }
+    if (g_svs == 8) { svc_leave(); return; }
     if (g_svs == 0) {
         svc_color(0, 0); svc_text(0x114, 0x1c2, "GAME SETTING");
         for (int i = 0; i < 8; i++) { svc_color(i == g_svcur, 0); svc_text(0x114, 0x160 - i * 0x14, SVC_MAIN[i]); }
@@ -1563,11 +1567,11 @@ int main(int argc, char **argv)
                 if (k == SDLK_F11) SDL_SetWindowFullscreen(g_win, (SDL_GetWindowFlags(g_win) & SDL_WINDOW_FULLSCREEN_DESKTOP) ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
                 if (k == SDLK_x && (e.key.keysym.mod & KMOD_ALT)) running = 0;      /* 0x20F37: Alt+X sai */
                 /* Teclas de arcade (pedido do usuario): F1 service, F2 botao 2 (test/next), F3 coin clear, F4 moeda */
-                if (k == SDLK_F1) { if (!g_service) svc_open(); else svc_press(0, 1); g_svio |= 2; }       /* SERVICE (0x20000) */
+                if (k == SDLK_F1) { if (!g_service) { svc_halt(); svc_open(); } else svc_press(0, 1); g_svio |= 2; }       /* SERVICE (0x20000) */
                 else if (k == SDLK_F2) { if (g_service) svc_press(1, 0); g_svio |= 1; }                      /* TEST (0x10000) */
                 else if (k == SDLK_F3) { g_coins = 0; g_svio |= 4; }
                 else if (k == SDLK_F4 || k == SDLK_F5 || (0 /* '5' agora e centro do P2 */)) { if (!g_freeplay) { g_coins++; sfx_play(SFX_COIN, 0); } g_svio |= 8; }   /* 0x20470: FUN_30fac idx 0x15 */   /* 0x20424: moeda */
-                if (g_service) { if (k == SDLK_ESCAPE) g_service = 0; continue; }
+                if (g_service) { if (k == SDLK_ESCAPE) svc_leave(); continue; }
                 if (g_state >= S_IDLE) {
                     if (k == SDLK_ESCAPE) { bga_unload(&g_ab); g_state = S_IDLE; }     /* 0x20F37: ESC -> estado 0 */
                     else if (k == SDLK_s || k == SDLK_RETURN || k == SDLK_SPACE) g_start1 = 1;        /* PRESS CENTER STEP: S = centro do P1 */
@@ -1614,7 +1618,7 @@ int main(int argc, char **argv)
             play_update();
         }
         { uint32_t now = SDL_GetTicks(); acc += now - t_prev; t_prev = now; if (acc > 250) acc = 250;
-          while (acc >= 1000.0 / 60.0) { acc -= 1000.0 / 60.0; if (g_state >= S_IDLE) attract_step(); else if (g_state == S_MODE) mode_step(); else if (g_state == S_MCONF) mconf_step(); else if (g_state == S_WHEEL) wheel_step(); else if (g_state == S_LOAD) load_step(); else if (g_state == S_WLOAD) wload_step(); else if (g_state == S_END) end_step(); } }
+          if (g_service) acc = 0; while (acc >= 1000.0 / 60.0) { acc -= 1000.0 / 60.0; if (g_state >= S_IDLE) attract_step(); else if (g_state == S_MODE) mode_step(); else if (g_state == S_MCONF) mconf_step(); else if (g_state == S_WHEEL) wheel_step(); else if (g_state == S_LOAD) load_step(); else if (g_state == S_WLOAD) wload_step(); else if (g_state == S_END) end_step(); } }
         set_view(); glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT); glColor4f(1, 1, 1, 1);
         if (g_state >= S_IDLE) draw_attract();
         else if (g_state == S_MODE) draw_mode(); else if (g_state == S_MCONF) draw_mconf(); else if (g_state == S_WHEEL) draw_wheel(); else if (g_state == S_LOAD) draw_load(); else if (g_state == S_WLOAD) draw_wload(); else if (g_state == S_END) draw_end(); else if (g_state == S_PLAY) draw_play();
