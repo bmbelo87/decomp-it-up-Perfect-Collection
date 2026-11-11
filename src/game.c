@@ -438,7 +438,7 @@ typedef struct { int id; float bpm; char title[64]; } Song;
 static Song g_songs[256]; static int g_nsongs;
 static const char *DIFFS[7] = { "E1", "H1", "H3", "E2", "H2", "H4", "DB" };
 static const char *DIFFN[7] = { "EASY", "HARD", "CRAZY", "EASY DBL", "HARD DBL", "CRAZY DBL", "DOUBLE" };
-typedef struct { int id, lv, song; } SEnt;
+typedef struct { int id, lv, song, vis; } SEnt;      /* vis = byte 0 da entrada do ELF (0x86D4D5A): so entradas com vis!=0 entram na roda (func_2b70b) */
 static SEnt g_sec[9][128]; static int g_nsec[9];      /* STAGE.CFG: secoes MODE (posicionais: EASY HARD DOUBLE REMIX REMIXDB CRAZY REMIXCZ MENU END), linhas "S nivel id" */
 static void songs_load(void)
 {
@@ -449,7 +449,7 @@ static void songs_load(void)
         int id; float bpm; char t[64];
         static int sec = -1; int lv; while (*l == ' ' || *l == '	') l++;      /* linhas das secoes comecam com TAB */
         if (!strncmp(l, "MODE", 4)) { sec++; continue; }
-        if (sec >= 0 && sec < 9 && l[0] == 'S' && sscanf(l, "S %d %d", &lv, &id) == 2 && g_nsec[sec] < 128) { SEnt *e = &g_sec[sec][g_nsec[sec]++]; e->id = id; e->lv = lv; e->song = -1; continue; }
+        if (sec >= 0 && sec < 9 && l[0] == 'S' && sscanf(l, "S %d %d", &lv, &id) == 2 && g_nsec[sec] < 128) { SEnt *e = &g_sec[sec][g_nsec[sec]++]; e->id = id; e->lv = lv; e->song = -1; e->vis = 1; continue; }
         if (l[0] == 'T' && l[1] == ' ' && sscanf(l, "T %d:%f:%63[^\r\n]", &id, &bpm, t) == 3 && g_nsongs < 256) {
             Song *so = &g_songs[g_nsongs++]; so->id = id; so->bpm = bpm;
             for (char *c = t; *c; c++) if ((unsigned char)*c > 126) *c = '?';
@@ -1279,7 +1279,7 @@ static void wheel_list(void);
 static int w_idx(int k) { return g_w_n ? (((g_w_pos + k) % g_w_n) + g_w_n) % g_w_n : 0; }      /* FUN_2B09D: indice circular */
 static void wheel_list(void)                                 /* FUN_2B70B: copia a secao g_w_sec do STAGE.CFG para a lista da roda */
 {
-    g_w_n = 0; for (int i = 0; i < g_nsec[g_w_sec] && g_w_n < 256; i++) if (g_sec[g_w_sec][i].song >= 0) g_w_list[g_w_n++] = i;
+    g_w_n = 0; for (int i = 0; i < g_nsec[g_w_sec] && g_w_n < 256; i++) if (g_sec[g_w_sec][i].song >= 0 && g_sec[g_w_sec][i].vis) g_w_list[g_w_n++] = i;
 }
 /* Codigos secretos (ELF piu: func_2a72b = FUN_2A72B, chamada por FUN_2B958 a cada toque do pad): as 8 ultimas teclas (bits 1 DL, 2 DR, 4 centro, 8 UL, 0x10 UR)
  * sao comparadas com 15 sequencias (tabela 0x81219AA do ELF / DOS equivalente). Com o modo REMIX ligado (flag 0x100):
@@ -1330,6 +1330,8 @@ static void code_key(int k)                                      /* teclas do pa
 }
 static void wheel_begin(void)
 {
+    /* FUN_2B695 (chamada por func_2b763/func_2c63f so com DAT 0x81206CE == 0, i.e. 1o estagio do credito): torna todas as entradas visiveis de novo. Confirmado no ELF. */
+    if (g_stage < 1) for (int a = 0; a < 9; a++) for (int i = 0; i < g_nsec[a]; i++) g_sec[a][i].vis = 1;
     memset(g_hist, 0, sizeof g_hist);
     /* FUN_2C63F: DAT_006E1784 = secao do STAGE.CFG pelo modo (flags 0x10 EASY, 0x20 HARD, 0x80 DOUBLE, 0x100 REMIX, 0x400 CRAZY; BATTLE 0x40 depende de DAT_0012B024: 0 EASY)
      * REMIXDB (0x200) e REMIXCZ (0x800) existem no codigo mas quem liga essas flags nao foi achado: inferido = REMIX jogado em double / crazy. */
@@ -1401,6 +1403,8 @@ static void wheel_step(void)
     if (!((g_m_prev == g_m_dir && g_m_prev != -1 && g_m_dir < 2) || remain < 1)) { g_m_anim++; g_m_frame++; g_m_t0++; return; }
     if (g_m_dir == -1 || g_m_dir > 1) g_m_dir = 0;
     music_stop();                                     /* fim do preview (Dxxx.AUD) ao escolher */
+    { SEnt *cur = &g_sec[g_w_sec][g_w_list[w_idx(g_m_dir)]];      /* FUN_2B6BC(secao atual, id) em func_2cdfa: esconde da roda a musica escolhida (so nesta secao) ate o proximo credito */
+      for (int i = 0; i < g_nsec[g_w_sec]; i++) if (g_sec[g_w_sec][i].id == cur->id) g_sec[g_w_sec][i].vis = 0; }
     g_sel = w_song(g_m_dir);                          /* DAT_006E17A0 = lado escolhido; fase 7 (nao lida ainda): lista antiga de dificuldade */
     sfx_play(SFX_ENTER, 3);                                    /* 0x2CDE3: FUN_30FAC idx 4 canal 3 */
     g_m_frame = 0;
