@@ -14,6 +14,7 @@
 #endif
 #include <zlib.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -266,11 +267,15 @@ static const SprTile *sp2_find(const Spr *s, const char *tag)
     for (int i = 0; s && i < s->n; i++) if (!strncmp(s->t[i].tag, tag, 6)) return &s->t[i];
     return NULL;
 }
+static int g_tile_nearest; static unsigned g_tile_nearest_tex;      /* camada com filtro NEAREST (ver bga_draw_n) */
 static void draw_tile(ResSet *rs, const SprTile *t, float ox, float oy)
 {
     Tex *tx = rs_tex(rs, t->file); if (!tx) return;
+    if (g_tile_nearest) { glBindTexture(GL_TEXTURE_2D, tx->id); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); g_tile_nearest_tex = tx->id; }
     if (!t->w && !t->h) { quad(tx, ox, oy, (float)tx->w, (float)tx->h, 0, 0, 1, 1); return; }   /* layer .tga puro */
-    quad(tx, ox + t->x, oy + t->y, t->w, t->h, t->u0 / tx->w, t->v0 / tx->h, t->u1 / tx->w, t->v1 / tx->h);
+    /* meio texel para dentro (respeitando espelhamento u0>u1/v0>v1): com GL_LINEAR o recorte puxa o texel vizinho da folha (emendas finas no quadro dos jogadores do MODE SELECT) */
+    float hu = g_tile_nearest ? 0 : 0.5f / tx->w, hv = g_tile_nearest ? 0 : 0.5f / tx->h, su = t->u1 >= t->u0 ? 1.f : -1.f, sv = t->v1 >= t->v0 ? 1.f : -1.f;
+    quad(tx, ox + t->x, oy + t->y, t->w, t->h, t->u0 / tx->w + su * hu, t->v0 / tx->h + sv * hv, t->u1 / tx->w - su * hu, t->v1 / tx->h - sv * hv);
 }
 
 /* ------------------------------------------------------------------ BGA */
@@ -320,6 +325,9 @@ static void bga_draw_n(BgaRun *b, int frame, int only)   /* only >= 0: so a cama
         glScalef(k.scale, k.scale, 1); glTranslatef(-k.px, -k.py, 0);
         glColor4f(k.r, k.g, k.b, k.a);
         const Spr *s = b->spr[i];
+        /* m05.spr = preenchimento (alfa .5) do quadro de texto dos jogadores: tampa esq. + meio esticado + tampa dir. se encontram EXATAMENTE a 640x480; com GL_LINEAR e janela escalada a borda dura da tampa
+         * vaza 1 pixel sobre o meio (linha escura nas emendas). NEAREST so nessa camada mantem a juncao exata em qualquer escala. */
+        { const char *nm = l->name, *w = "m05.spr"; g_tile_nearest = 1; for (; *w; w++, nm++) if (tolower((unsigned char)*nm) != *w) { g_tile_nearest = 0; break; } if (g_tile_nearest && *nm) g_tile_nearest = 0; }
         if (s->type == 2 && s->n) { int f = (int)(frac * s->n); if (f >= s->n) f = s->n - 1; draw_tile(&b->rs, &s->t[f], 0, 0); }
         else if (s->type == 3 && s->n) {
             /* FUN_2EFAD tipo 3: grade pc colunas x pb linhas, passo = (x+w, y+h) do tile 0; indice = (a ? linha*pc+col : pb*col+linha + deslocamento) % n, deslocamento = (int)(n*(1-frac)) */
@@ -330,6 +338,8 @@ static void bga_draw_n(BgaRun *b, int frame, int only)   /* only >= 0: so a cama
             }
         }
         else for (int t = s->n - 1; t >= 0; t--) draw_tile(&b->rs, &s->t[t], 0, 0);      /* FUN_2EFAD tipo 1: do ultimo tile ao primeiro */
+        if (g_tile_nearest && g_tile_nearest_tex) { glBindTexture(GL_TEXTURE_2D, g_tile_nearest_tex); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); g_tile_nearest_tex = 0; }
+        g_tile_nearest = 0;
         glPopMatrix();
     }
     glColor4f(1, 1, 1, 1);
@@ -1230,6 +1240,23 @@ static void orig_time(BgaRun *b, int n)                       /* FUN_0002A672(58
     }
     glPopMatrix();
 }
+/* func_2B958 (chamada por func_2bd93 = MODE SELECT e func_2c840 = roda de musicas): textos de cada jogador acima dos circulos SHIFT, camadas do 099/098.BGA (mt01..mt08, MT10/MT11) no quadro base + anim%30
+ * (0x86D6E4E = g_m_anim). Tabelas 0x81221EB (camadas) / 0x8122213 (bases), lidas no ELF. P1: ja entrou -> camada 13 (apontando: 14, base 420) base 360; senao, com modo double/REMIXDB
+ * (flags 0x280) camada 19 base 510; senao sem credito 11 base 240; com credito 12 base 300. P2: 17 (18 apontando) base 360 / double 20 base 510 / 15 base 240 / 16 base 300. */
+static void draw_player_texts(int dbl)
+{
+    int n30 = g_m_anim % 30, aim = g_m_dir != -1;
+    glColor4f(1, 1, 1, 1);
+    for (int pl = 0; pl < 2; pl++) {
+        int joined = (g_sflag >> pl) & 1, layer, base;
+        if (joined) { layer = pl ? (aim ? 18 : 17) : (aim ? 14 : 13); base = aim ? 420 : 360; }
+        else if (dbl) { layer = pl ? 20 : 19; base = 510; }
+        else if (cred_avail()) { layer = pl ? 16 : 12; base = 300; }
+        else { layer = pl ? 15 : 11; base = 240; }
+        bga_draw_n(&g_ab, base + n30, layer);
+    }
+    glColor4f(1, 1, 1, 1);
+}
 static void draw_mode(void)
 {
     int remain = 30 - g_m_t0 / 60, local = 0;
@@ -1238,19 +1265,7 @@ static void draw_mode(void)
     bga_draw(&g_ab, 30);
     orig_time(&g_ab, remain);                                    /* FUN_0002A672 */
     glColor4f(1, 1, 1, 1);
-    /* func_2B958: textos de cada jogador acima dos circulos SHIFT, camadas do 099.BGA (mt01..mt08, MT10/MT11) no quadro base + anim%30:
-     * P1: ja entrou -> camada 13 (apontando: 14, base 420) base 360; sem credito 11 base 240; com credito 12 base 300. P2: 17 (18 apontando) base 360 / 15 base 240 / 16 base 300.
-     * (ramo double 0x280: camadas 19/20 base 510 - nao tratado) */
-    {
-        int n30 = g_m_anim % 30, aim = g_m_dir != -1;
-        for (int pl = 0; pl < 2; pl++) {
-            int joined = (g_sflag >> pl) & 1, layer, base;
-            if (joined) { layer = pl ? (aim ? 18 : 17) : (aim ? 14 : 13); base = aim ? 420 : 360; }
-            else if (cred_avail()) { layer = pl ? 16 : 12; base = 300; }
-            else { layer = pl ? 15 : 11; base = 240; }
-            bga_draw_n(&g_ab, base + n30, layer);
-        }
-    }
+    draw_player_texts(0);                                       /* mode select: flags de modo (0x280) ainda nao existem */
     glColor4f(1, 1, 1, 1);
     for (int e = 2; e <= 3; e++) {                             /* setas SHIFT: camadas 0x1B/0x1C e 0x1E/0x1F no quadro 90 + anim */
         int c = (g_m_dir == e && g_m_anim < 0x3c) ? g_m_anim : 0;
@@ -1461,6 +1476,7 @@ static void draw_wheel(void)
           snprintf(b, sizeof b, "%d", g_sec[g_w_sec][g_w_list[w_idx(g_m_dir)]].lv); orig_text(316.f - 4.f * (float)strlen(b), 0x46, b); }      /* centralizado no mesmo eixo do BPM (296 + 5*8/2 = 316) para 1 ou 2 digitos */      /* nivel, "%d" em (0x130,0x46) (inferido da fase anterior) */
     }
     orig_time(&g_ab, remain);                                      /* FUN_0002A672 */
+    draw_player_texts(g_m_sel == 4 || (g_m_sel == 3 && g_w_sec == 4));   /* func_2c840 tambem chama func_2b958 (flags 0x80 DOUBLE / 0x200 REMIXDB) */
     glColor4f(1, 1, 1, 1);
 }
 static void draw_attract(void)
