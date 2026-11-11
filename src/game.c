@@ -721,7 +721,9 @@ static const SprTile *sp2_find_x(const Spr *s, const char *tag)           /* nom
 static void tile_up(ResSet *rs, const SprTile *t, float ox, float oy)         /* tile em coordenadas y-para-cima (dentro de glScalef(1,-1,1)): v invertido */
 {
     Tex *tx = rs_tex(rs, t->file); if (!tx) return;
-    quad(tx, ox + t->x, oy + t->y, t->w, t->h, t->u0 / tx->w, t->v1 / tx->h, t->u1 / tx->w, t->v0 / tx->h);
+    /* meio texel para dentro: com GL_LINEAR (janela em escala) a borda do recorte puxava o texel do sprite vizinho da folha (linha sob o PRESS CENTER STEP) */
+    float hu = 0.5f / tx->w, hv = 0.5f / tx->h;
+    quad(tx, ox + t->x, oy + t->y, t->w, t->h, t->u0 / tx->w + hu, t->v1 / tx->h - hv, t->u1 / tx->w - hu, t->v0 / tx->h + hv);
 }
 /* Icones dos modificadores (FUN_21915 = func_21915, chamada pela roda/modo e pela gameplay; FUN_21885 = translate + sprite do ARROW541 + translate de volta).
  * x = 4 (P1) / 600 (P2), y para cima; sprites do ARROW541 (indice do original = tile - 1): speed 0x1B accel (y 240) | random step 0x32 raccel (240), vanish 0x1A (200) | random vanish 0x23 v_rand (200),

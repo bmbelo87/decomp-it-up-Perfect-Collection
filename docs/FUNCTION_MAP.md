@@ -463,3 +463,7 @@ Causa do bug (reportado em jogo: "Extravaganza 3rd" sem DISC): `CD_TBL` do `game
 ## Atualização 45 — F1 (SERVICE) interrompe tudo e sair do serviço reseta o jogo
 
 **Empírico (pedido do usuário; não lido no código):** F1 fora do serviço funciona como fechar a janela ativa: `svc_halt` para a música, descarrega os BGAs (`g_eb/g_ab/g_ab2`), zera jogadores (`g_sflag`), estágio, modificadores e `g_att`, e vai ao estado 0 (attract); enquanto o serviço está aberto o jogo não avança (sem `attract_step`/`play_update`). Ao sair (ESC ou item de saída, `svc_leave`) volta ao estado 0 com `g_att=0`: sem crédito começa pelo **81.DAT**; com crédito/FREE PLAY o attract vai direto ao título (`cred_avail`). Antes o serviço só desenhava por cima e o jogo/música continuavam por baixo.
+
+## Atualização 46 — Linha sob o PRESS CENTER STEP (e outros tiles de sprite)
+
+**Causa (verificada por captura ampliada):** `tile_up` amostrava o recorte exato do tile; com `GL_LINEAR` e a janela em escala (ex. 800x600) a borda inferior puxava o texel do sprite vizinho da folha, formando uma linha tracejada cinza sob o texto. **Correção:** o recorte usa meio texel para dentro (`+0.5/w`, `-0.5/h`) em `tile_up`; vale para todos os tiles do `ARROW541/542`, sem mudar a posição do quad.
