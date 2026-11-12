@@ -383,8 +383,14 @@ static void bga_draw(BgaRun *b, int frame) { bga_draw_n(b, frame, -1); }
 /* ------------------------------------------------------------------ audio */
 /* ---- efeitos sonoros (SFX). No PIU.EXE original saem de um chip de som (FUN_00030fac); aqui usam os WAV de game/EFFECTS.
  * Ordem = tabela effects_file_names do ELF Linux (indice = voz de PIU.BIN, 35 entradas). */
+#ifdef PIU_BUILD_PC
+/* PC: so 16 arquivos em Eff\ (0x411A30): 01-1 10-2 2-1 3-2 4-1 5-1 7-1 8-1 A B C D F start1-3. Mesmos indices do Arcade; 4-2 vira 4-1 (confirmar modo) e RANK_x vira A..F; o resto nao existe na PC (mudo). */
+static const char *const SFX_NAMES[35] = { "01-1","","2-1","3-2","4-1","5-1","","7-1","8-1","","","","","","","",
+    "10-2","","","","START1","START2","START3","A","B","C","D","F","","","","","","","" };
+#else
 static const char *const SFX_NAMES[35] = { "01-1","01-11","2-1","3-2","4-2","5-1","6-2","7-1","8-1","9-5","9-A","9-B","9-C","9-D","9-F","TIME_LIMIT",
     "10-2","13-1","12-1","14","START1","START2","START3","RANK_A","RANK_B","RANK_C","RANK_D","RANK_F","NOTGOOD1","NOTGOOD2","NOTGOOD3","NOTGOOD4","GOODJOB1","GOODJOB2","GOODJOB3" };
+#endif
 enum { SFX_COIN = 21, SFX_JOIN = 3, SFX_MOVE = 16, SFX_ENTER = 4, SFX_RANK_A = 23 };
 typedef struct { int16_t *pcm; uint32_t frames; } SfxBuf;
 typedef struct { const SfxBuf *b; uint32_t pos; } SfxVoice;
