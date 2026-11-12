@@ -127,3 +127,12 @@ Escena 5 (0x40A210): contador `0x80B754`; 83.BGA en el cuadro 600+cnt%480; a par
 
 ## 18. .PNZ de la PC (pantallas T%03d, LOAD1..4, CREDITS)
 - [C] Mismo formato y cifrado que el Arcade (u32 H | datos; p[i] = bitrev8(c[i]) ^ KEY[(H+i)&0x3FF]; H = adler32), pero la **clave de 1024 bytes es distinta**: pumpy.exe @0x42D27C (descifra en 0x4022F0, lectura en 0x402340). 110/110 archivos de `Title/` validan (adler + PNG). Antes `piu_pc` usaba la clave del Arcade -> imagen inválida -> pantalla LOAD negra al entrar a la música y tras el DANCE GRADE. `src/piu_key_pc.h`, `piu_use_pc_key`.
+
+
+## 19. Pantalla de opciones (083.DAT)
+
+Título de la PC: UR selecciona OPTIONS y UR otra vez abre la escena 0x1C (`piu_pc`: estado `S_OPTION`). **Pedido del usuario:** idéntica al menú de Prex3 (`game_option.c`, `086.DAT`); la PC usa `083.DAT` + `083.MP3` en bucle (las mismas 50 capas). 5 ítems: nivel (3), STAGE BREAK, SHOW HELP, DEFAULT SETUP, EXIT; DL/DR mueven, el centro aplica, salir suena 2-1. Los valores son los del menú de servicio (`g_cfg.level/stage/help`, `PIU_EEPROM.BIN`) [inferido]. Verificado por captura; no jugado.
+
+## 20. Códigos: un buffer por pantalla
+
+**Empírico (usuario):** el historial de toques es separado por pantalla (modo / músicas), se limpia al entrar en cada una, y solo cuenta con la pantalla activa (fases 2 y 10, nunca en la animación de entrada). Antes UL UL en el título + UL en modo completaban QQQ.

@@ -127,3 +127,12 @@ Scene 5 (0x40A210): counter `0x80B754`; 83.BGA at frame 600+cnt%480; from 381 fr
 
 ## 18. PC .PNZ files (T%03d, LOAD1..4, CREDITS screens)
 - [C] Same format and cipher as the Arcade (u32 H | data; p[i] = bitrev8(c[i]) ^ KEY[(H+i)&0x3FF]; H = adler32), but the **1024-byte key is different**: pumpy.exe @0x42D27C (decrypted at 0x4022F0, read at 0x402340). 110/110 files in `Title/` validate (adler + PNG). Before, `piu_pc` used the Arcade key -> invalid image -> black LOAD screen when entering a song and after the DANCE GRADE. `src/piu_key_pc.h`, `piu_use_pc_key`.
+
+
+## 19. Options screen (083.DAT)
+
+PC title: UR selects OPTIONS and UR again opens scene 0x1C (`piu_pc`: state `S_OPTION`). **User request:** identical to the Prex3 menu (`game_option.c`, `086.DAT`); the PC uses `083.DAT` + `083.MP3` looping (same 50 layers). 5 items: level (3), STAGE BREAK, SHOW HELP, DEFAULT SETUP, EXIT; DL/DR move, centre applies, leaving plays 2-1. Values are the service menu's (`g_cfg.level/stage/help`, `PIU_EEPROM.BIN`) [inferred]. Checked by screenshot; not played.
+
+## 20. Codes: one buffer per screen
+
+**Empirical (user):** the tap history is separate per screen (mode / music), cleared on entering each, and only counts while the screen is active (phases 2 and 10, never during the entry animation). Before, UL UL on the title + UL in mode completed QQQ.

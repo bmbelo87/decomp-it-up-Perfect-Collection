@@ -513,3 +513,8 @@ Full table in `docs/PC_DIFF.en.md` (generated with `tools/map_pc_dos.py` and `to
 ## Update 53 — PC Time: starts at 99 (and the position is right)
 
 **Confirmed:** `pumpy.exe` `0x40CFD0` (mode) and `0x40EC50` (music) compute `99 - ticks/240` (`ticks` = `0x73345C`, 240/s: `0x411D20` is a 1 ms timer callback, `240*n/1000`), so Time starts at 99 and drops 1 per second; at zero it confirms by itself (already implemented). Before, `piu_pc` used 30 s (the Arcade value). The real PC screenshot shows "47", consistent. **Position:** the 3 call sites of `0x40D4D0` use `(584, 0x1B5=437)`; compared with the real screenshot, the digits and the TIME label sit in the same place (±1 px). `piu_pc` only (`PC_TIME0`); the Arcade stays at 30.
+
+
+## Update 54 — PC options screen and per-screen code buffers
+
+See `docs/PC_DIFF.en.md` §19 (options, `083.DAT`, identical to Prex3) and §20 (code history separate and cleared per screen: mode, music). Looping music (`g_mus.loop`).
