@@ -124,3 +124,6 @@ Escena 5 (0x40A210): contador `0x80B754`; 83.BGA en el cuadro 600+cnt%480; a par
 
 ## 17. Timer
 - [C] `0x40D4D0(584, 0x1B5, n)`: el timer de la PC queda en y=437 (y hacia arriba), 8 px por encima del Arcade (429). Glifos 02.TGA iguales (celdas 48x40, 5 por fila, v0=162; paso -40, 2 dígitos).
+
+## 18. .PNZ de la PC (pantallas T%03d, LOAD1..4, CREDITS)
+- [C] Mismo formato y cifrado que el Arcade (u32 H | datos; p[i] = bitrev8(c[i]) ^ KEY[(H+i)&0x3FF]; H = adler32), pero la **clave de 1024 bytes es distinta**: pumpy.exe @0x42D27C (descifra en 0x4022F0, lectura en 0x402340). 110/110 archivos de `Title/` validan (adler + PNG). Antes `piu_pc` usaba la clave del Arcade -> imagen inválida -> pantalla LOAD negra al entrar a la música y tras el DANCE GRADE. `src/piu_key_pc.h`, `piu_use_pc_key`.

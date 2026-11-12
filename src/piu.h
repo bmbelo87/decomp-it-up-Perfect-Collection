@@ -8,6 +8,7 @@
 uint32_t piu_adler32(const uint8_t *p, size_t n);
 void     piu_xor_d2(uint8_t *p, size_t n);                 /* 0x29949: key=0xD2, +0x95 */
 /* .AUD/.PNZ: devolve buffer malloc'ado (plain) ou NULL; *len = tamanho; adler_ok informa checksum */
+extern int piu_use_pc_key;
 uint8_t *piu_unpack_file(const char *path, size_t *len, int *adler_ok);
 
 /* --- container RES (BGA\*.DAT, 0x29A45) --- */

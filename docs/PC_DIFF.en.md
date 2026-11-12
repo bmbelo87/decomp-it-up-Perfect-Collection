@@ -124,3 +124,6 @@ Scene 5 (0x40A210): counter `0x80B754`; 83.BGA at frame 600+cnt%480; from 381 fr
 
 ## 17. Timer
 - [C] `0x40D4D0(584, 0x1B5, n)`: the PC timer sits at y=437 (y up), 8 px above the Arcade (429). Same 02.TGA glyphs (48x40 cells, 5 per row, v0=162; step -40, 2 digits).
+
+## 18. PC .PNZ files (T%03d, LOAD1..4, CREDITS screens)
+- [C] Same format and cipher as the Arcade (u32 H | data; p[i] = bitrev8(c[i]) ^ KEY[(H+i)&0x3FF]; H = adler32), but the **1024-byte key is different**: pumpy.exe @0x42D27C (decrypted at 0x4022F0, read at 0x402340). 110/110 files in `Title/` validate (adler + PNG). Before, `piu_pc` used the Arcade key -> invalid image -> black LOAD screen when entering a song and after the DANCE GRADE. `src/piu_key_pc.h`, `piu_use_pc_key`.

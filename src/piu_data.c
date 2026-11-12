@@ -1,6 +1,8 @@
 /* Leitores de formatos: cifras, RES, NOT, BGA. Ver docs/FUNCTION_MAP.md (Atualizacoes 8-10) e docs/NOT_FORMAT.md */
 #include "piu.h"
 #include "piu_key.h"
+#include "piu_key_pc.h"
+int piu_use_pc_key;      /* 1 = build PC (chave 0x42D27C do pumpy.exe) */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -48,7 +50,7 @@ uint8_t *piu_unpack_file(const char *path, size_t *len, int *adler_ok)
     uint32_t h;
     memcpy(&h, b, 4);
     size_t m = n - 4;
-    for (size_t i = 0; i < m; i++) b[i] = bitrev8(b[4 + i]) ^ PIU_KEY[(h + i) & 0x3FF];   /* 0x2896A */
+    for (size_t i = 0; i < m; i++) b[i] = bitrev8(b[4 + i]) ^ (piu_use_pc_key ? PIU_KEY_PC : PIU_KEY)[(h + i) & 0x3FF];   /* 0x2896A */
     if (adler_ok) *adler_ok = (piu_adler32(b, m) == h);
     *len = m;
     return (uint8_t *)realloc(b, m ? m : 1);

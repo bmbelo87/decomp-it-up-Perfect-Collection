@@ -2011,6 +2011,9 @@ static void set_view(void)
 
 int main(int argc, char **argv)
 {
+#ifdef PIU_BUILD_PC
+    piu_use_pc_key = 1;      /* .PNZ da PC: mesma cifra, chave de 0x42D27C */
+#endif
 #ifdef _WIN32
     {   /* sem janela de console (debug) junto com o jogo: libera o console se o stderr for ele proprio (duplo clique/jogar.bat). Com redirecao (testes/CI) ou -debug, mantem. */
         extern __declspec(dllimport) void *__stdcall GetStdHandle(unsigned long);
