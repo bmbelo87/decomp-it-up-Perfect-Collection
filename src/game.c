@@ -35,9 +35,11 @@
 /* Duas builds do mesmo codigo: ARCADE (PIU.EXE, 18/12/2000; padrao) e PC (pumpy.exe, 16/04/2001; -DPIU_BUILD_PC, alvo piu_pc) */
 #ifdef PIU_BUILD_PC
 #define PIU_DEF_DIR "../game_pc"
+#define PIU_EFFDIR "Eff"
 #define PIU_TITLE "Pump It Up - Perfect Collection (PC, pumpy.exe reconstruido)"
 #else
 #define PIU_DEF_DIR "../game"
+#define PIU_EFFDIR "EFFECTS"
 #define PIU_TITLE "Pump It Up (PIU.EXE reconstruido)"
 #endif
 static char g_dir[260] = PIU_DEF_DIR;
@@ -71,10 +73,34 @@ static int has_ext(const char *n, const char *e)
     size_t l = strlen(n), k = strlen(e);
     return l >= k && ieq(n + l - k, e);
 }
+#ifndef _WIN32
+#include <dirent.h>
+#include <sys/stat.h>
+/* Linux/macOS: sistema de arquivos sensivel a caixa. Os dados do PIU misturam caixas (Arcade: BGA/00.DAT; PC: Bga/00.dat, Stage.cfg, Eff/), entao
+ * cada componente do caminho que nao existe e procurado sem diferenciar maiusculas/minusculas. */
+static void ci_fix(char *path, size_t base)
+{
+    char *s = path + base;
+    while (*s) {
+        char *e = strchr(s, '/'); size_t l = e ? (size_t)(e - s) : strlen(s);
+        char save = *(s + l); *(s + l) = 0;
+        struct stat st;
+        if (stat(path, &st) != 0) {
+            char dir[300]; size_t dl = (size_t)(s - path); if (dl > 0) dl--; memcpy(dir, path, dl); dir[dl] = 0;
+            DIR *d = opendir(dl ? dir : "."); char name[300]; snprintf(name, sizeof name, "%s", s);
+            if (d) { struct dirent *de; while ((de = readdir(d))) if (ieq(de->d_name, name) && strlen(de->d_name) == l) { memcpy(s, de->d_name, l); break; } closedir(d); }
+        }
+        *(s + l) = save; if (!e) break; s = e + 1;
+    }
+}
+#endif
 static void path_of(char *out, size_t sz, const char *fmt, ...)
 {
     char t[300]; va_list a; va_start(a, fmt); vsnprintf(t, sizeof t, fmt, a); va_end(a);
     snprintf(out, sz, "%s/%s", g_dir, t);
+#ifndef _WIN32
+    ci_fix(out, strlen(g_dir) + 1);
+#endif
 }
 
 /* ------------------------------------------------------------------ PNG -> GL */
@@ -390,7 +416,7 @@ static void audio_init(void)
 static void sfx_load(void)
 {
     for (int k = 0; k < 35; k++) {
-        char p[300]; path_of(p, sizeof p, "EFFECTS/%s.WAV", SFX_NAMES[k]);
+        char p[300]; path_of(p, sizeof p, PIU_EFFDIR "/%s.WAV", SFX_NAMES[k]);
         FILE *f = fopen(p, "rb"); if (!f) continue;
         fseek(f, 0, SEEK_END); long n = ftell(f); fseek(f, 0, SEEK_SET);
         uint8_t *d = (uint8_t *)malloc(n); if (!d || fread(d, 1, n, f) != (size_t)n) { free(d); fclose(f); continue; } fclose(f);

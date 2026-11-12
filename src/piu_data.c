@@ -64,6 +64,7 @@ int piu_res_load(const char *path, PiuRes *r)
     uint32_t magic, ver, cnt, dsz, unk, adl;
     memcpy(&magic, d, 4); memcpy(&ver, d + 4, 4); memcpy(&cnt, d + 8, 4);
     memcpy(&dsz, d + 12, 4); memcpy(&unk, d + 16, 4); memcpy(&adl, d + 20, 4);
+    if (ver >= 3) { uint32_t t = cnt; cnt = dsz; dsz = t; }   /* RES v3 (build PC, pumpy.exe): datasize vem antes de count; resto igual (confirmado em 109 .dat) */
     if (magic != 0x00534552u || (size_t)24 + 28u * cnt + dsz > n) { free(d); return -2; }
     uint8_t *dir = (uint8_t *)malloc(28u * cnt + 1);
     memcpy(dir, d + 24, 28u * cnt);
