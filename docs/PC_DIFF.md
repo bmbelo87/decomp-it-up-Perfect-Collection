@@ -76,3 +76,8 @@ Nada contradiz ate agora [I]: mesmos `.NOT`, mesmo `83.dat`, mesmos nomes de ran
 - Versao `printf("%d%02d", 4, 1)` = **401** em (601,458) preto e (600,459) branco (Arcade 352).
 - [I] qual tecla fisica do pad PC corresponde a cada bit (piukey.cfg ainda nao decifrado): no `piu_pc` P1 = Z C Q E, P2 = numpad 1 3 7 9 (bits 1 2 8 0x10). Teste empirico pendente.
 - Teste: `piu_pc.exe -game <pasta PC> -title -freeplay -selftest 3 -shot f.ppm`.
+
+## 8. Regras empiricas da build PC (usuario)
+- `PRESS CENTER STEP` nao aparece na PC (sobra do `00.BGA`): bolhas desativadas no `piu_pc`. [empirico]
+- Fluxo: `81.DAT` -> `82.DAT` (titulo) direto. Modo: `099.DAT` com os discos (`MM_*`) da `99.DAT`. [empirico]
+- Sem SERVICE (F1), TEST (F2), COIN CLEAR (F3), COIN 1/2 (F4/F5): o menu de servico nunca e acessivel; entradas livres, **sempre FREE PLAY**. [empirico] (`svc_apply` fixa `g_freeplay=1`; `-service` ignorado.) Nota: o codigo do menu existe no pumpy.exe (0x40F7E0+), mas nao e alcancavel pelo jogo.

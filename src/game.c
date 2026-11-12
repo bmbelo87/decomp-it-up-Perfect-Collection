@@ -963,7 +963,11 @@ static void attract_step(void)
                 if (svc_demo_on() && music_load(1)) music_start(); }   /* 0x28442: FUN_294B9 (para) e, se DAT_006e1918 (DEMO SOUND), AUDIO.AUD (FUN_29263 EAX=1 + FUN_2949F) */
         }
         break;
-    case S_LOGO:   if (g_cnt < 500 && !cred_avail()) { g_bgaf = g_cnt; g_cnt++; } else goto_idle(); break;      /* 0x2863A: EDX = contador antes do ++ */
+#ifdef PIU_BUILD_PC
+    case S_LOGO:   if (g_cnt < 500 && !cred_avail()) { g_bgaf = g_cnt; g_cnt++; } else enter_title(); break;      /* PC: depois do 81.DAT cai direto no titulo (82.DAT) [empirico, usuario] */
+#else
+    case S_LOGO:   if (g_cnt < 500 && !cred_avail()) { g_bgaf = g_cnt; g_cnt++; } else goto_idle(); break;
+#endif      /* 0x2863A: EDX = contador antes do ++ */
     case S_INTRO:  if (!cred_avail() && g_cnt < 0x3B1) { g_bgaf = g_cnt; g_cnt++; } else enter_title(); break;  /* 0x28559 */
     case S_TITLE:
 #ifdef PIU_BUILD_PC
@@ -1055,7 +1059,7 @@ static void draw_title_overlay(void)            /* FUN_00020134 (func_20134): cr
     }
 #ifdef PIU_BUILD_PC
     glPopMatrix();
-    if (g_b00.ok) {   /* 0x404A0E: bolhas do 00.BGA - com credito +0 (P1) / +30 (P2) PRESS CENTER STEP; sem credito +60 / +90 PLEASE INSERT COIN; quadro = contador%30 */
+    if (0 && g_b00.ok) {   /* DESATIVADO (empirico, usuario: PRESS CENTER STEP nao aparece na PC, e sobra do 00.BGA). 0x404A0E: bolhas do 00.BGA - com credito +0 (P1) / +30 (P2) PRESS CENTER STEP; sem credito +60 / +90 PLEASE INSERT COIN; quadro = contador%30 */
         int f = g_ovc % 30;
         for (int p = 0; p < 2; p++) if (!(g_sflag & (1 << p))) bga_draw(&g_b00, (cred_avail() ? 0 : 60) + p * 30 + f);
     }
@@ -1077,11 +1081,19 @@ static void draw_title_overlay(void)            /* FUN_00020134 (func_20134): cr
  * Telas: 0 menu (2d847) 1 I/O TEST (2d954) 2 EEPROM TEST (2db18) 3 SCREEN TEST (2dc59) 4 GAME OPTION (2dcdc) 5 COIN OPTION (2dfc0)
  *        6 SOUND TEST (2e167) 7 DATE (2e2bc) 8 EXIT (2e450). Texto em y-para-cima (coords do jogo); cursor DAT_0012cb84 (menu) / DAT_0012cb88 (linha). */
 typedef struct { uint8_t mode, level, stage, lang, demo, help, coin; } SvcCfg;
+#ifdef PIU_BUILD_PC
+static SvcCfg g_cfg = { 0, 1, 2, 0, 1, 0, 0 };      /* PC: FREE PLAY por padrao (coin 0) [empirico: sem PRESS CENTER STEP / INSERT COIN no jogo PC] */
+#else
 static SvcCfg g_cfg = { 0, 1, 2, 0, 1, 0, 1 };      /* DEFAULT SETTING (0x2D6B5): 6e1914=0 6e1915=1 6e1916=2 6e1917=0 6e1918=0 6e1919=0; coin padrao 1 (inferido) */
+#endif
 static int g_svs, g_svcur, g_svrow, g_svlock_ok, g_svlock_err, g_svsnd_a, g_svsnd_e, g_svdate_y = 2000, g_svdate_m = 11, g_svdate_d = 1, g_svio;
 static int svc_demo_on(void) { return g_cfg.demo; }
 static int svc_break_on(void) { return g_cfg.stage != 0; }      /* opcao STAGE BREAK do GAME OPTION (OFF = 0) */
+#ifdef PIU_BUILD_PC
+static void svc_apply(void) { g_cpc = 1; g_freeplay = 1; }      /* PC: sempre FREE PLAY (entradas livres) */
+#else
 static void svc_apply(void) { g_cpc = g_cfg.coin ? g_cfg.coin : 1; g_freeplay = g_cfg.coin == 0 || g_cli_free; }
+#endif
 static void svc_save(void)
 {
     char pth[300]; path_of(pth, sizeof pth, "PIU_EEPROM.BIN"); FILE *f = fopen(pth, "wb");
@@ -1690,6 +1702,9 @@ int main(int argc, char **argv)
         g_m_sel = wheel_start; bga_load_name(&g_ab, "098"); bga_load_name(&g_ab2, BG[g_m_sel]); wheel_enter();
         if (wheel_dir >= 0) { g_m_dir = wheel_dir; g_m_anim = 10; }
     }
+#ifdef PIU_BUILD_PC
+    svc_start = 0;      /* PC: sem menu de servico */
+#endif
     if (svc_start) { svc_open(); g_svs = svc_start - 1; g_svcur = g_svs ? g_svs - 1 : 0; }
     char p[300]; path_of(p, sizeof p, "BGA/00.DAT");
     if (rs_open(&g_arrow, p)) { logf_("BGA/00.DAT nao encontrado em %s\n", g_dir); }
@@ -1711,6 +1726,11 @@ int main(int argc, char **argv)
                 if (k == SDLK_F11) SDL_SetWindowFullscreen(g_win, (SDL_GetWindowFlags(g_win) & SDL_WINDOW_FULLSCREEN_DESKTOP) ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
                 if (k == SDLK_x && (e.key.keysym.mod & KMOD_ALT)) running = 0;      /* 0x20F37: Alt+X sai */
                 /* Teclas de arcade (pedido do usuario): F1 service, F2 botao 2 (test/next), F3 coin clear, F4 moeda */
+#ifdef PIU_BUILD_PC
+                /* PC: sem SERVICE (F1), TEST (F2), COIN CLEAR (F3) e moedas (F4/F5) - o jogo PC nunca acessa o menu de servico e e sempre FREE PLAY [empirico, usuario] */
+                if (k == SDLK_F1 || k == SDLK_F2 || k == SDLK_F3 || k == SDLK_F4 || k == SDLK_F5) {}
+                else
+#endif
                 if (k == SDLK_F1) { if (!g_service) { svc_halt(); svc_open(); } else svc_press(0, 1); g_svio |= 2; }       /* SERVICE (0x20000) */
                 else if (k == SDLK_F2) { if (g_service) svc_press(1, 0); g_svio |= 1; }                      /* TEST (0x10000) */
                 else if (k == SDLK_F3) { g_coins = 0; g_svio |= 4; }
