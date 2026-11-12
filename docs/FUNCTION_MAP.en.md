@@ -503,3 +503,8 @@ Full table in `docs/PC_DIFF.en.md` (generated with `tools/map_pc_dos.py` and `to
 ## Update 51 — 5-1.WAV together with the grade voice (Dance Grade)
 
 **Empirical (user):** when the grade is shown on the Dance Grade, `5-1.WAV` (idx 5, channel 3) plays together with the grade WAV (RANK_x / A..F). Applies to Arcade and PC (shared code in `PH_RESULT`, `c == 80`).
+
+
+## Update 52 — Universal Remix BGA (PC: `BGAN.DAT`)
+
+**Confirmed** in `pumpy.exe` `0x40965C..0x4096E6`: songs 116–119 and 219–224 (Remix without their own `.dat`: 117, 118, 119, 219, 220, 221, 223, 224) always use `BGAN.DAT`; the others try `BGA\%03d.DAT` and fall back to `116.DAT` if the file fails. `116.DAT` holds `116.BGA` (50 layers, 120 BPM, keys with r,g,b,a colour that alternate the background) + ANI sprites (`at01..15`, `s01..15`, `t01..15`). `bga_load` (`piu_pc` only) applies the rule. Checked by screenshot (blue tunnel → red); not played.
