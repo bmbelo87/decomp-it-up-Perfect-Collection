@@ -486,3 +486,8 @@ Causa do bug (reportado em jogo: "Extravaganza 3rd" sem DISC): `CD_TBL` do `game
 **Driver:** `gwiopm.sys` (GiveIO-like; `0x42D6B4`, usos em `0x40274F/0x4027E0/0x40298A`) instalado via SCM (advapi32) -> exige administrador (erro 740 ao abrir fora de elevacao).
 
 **Diferencas de arquitetura vs Arcade:** renderizacao OpenGL (opengl32; sem Glide), DirectInput/DirectSound/winmm, MP3 via DirectShow (`RenderFile`, `AUDIO\%03d.MP3`, `AUDIO\D%03d.MP3`), `piukey.cfg`, pastas `bga\`, `eff\`, `title\`. RES v3 (cabecalho com `datasize` antes de `count`).
+
+
+## Atualização 49 — Mapa de diferenças PC x Arcade e carga de dados da build PC
+
+Tabela completa em `docs/PC_DIFF.md` (gerada com `tools/map_pc_dos.py` e `tools/cmp_bga.py`). **Confirmado:** `pumpy.exe` é o mesmo código do arcade portado para Win32/OpenGL; funções PC e DOS correspondem pela ordem e por strings (PC `0x403BEF/0x403CB0/0x403DA0` = DOS `0x28469/0x285D4/0x284E0`; service PC `0x40F7E0…` = DOS `0x2E4FF…`). **Novo na PC:** checagem do tapete, driver `gwiopm`, MP3 via DirectShow, `eff\*.wav` por DirectSound, `piukey.cfg`, `c:\pump.ini`, `083.dat`/`083.mp3`. Implementado: `piu_res_load` lê RES v3; `piu_pc` usa `Eff/` e resolve caminhos sem diferenciar caixa no Linux/macOS.
