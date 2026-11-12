@@ -518,3 +518,8 @@ Tabela completa em `docs/PC_DIFF.md` (gerada com `tools/map_pc_dos.py` e `tools/
 ## Atualização 54 — Tela de opções da PC e buffers de código por tela
 
 Ver `docs/PC_DIFF.md` §19 (opções, `083.DAT`, idêntica à Prex3) e §20 (histórico de códigos separado e limpo por tela: modo, músicas). Música em loop (`g_mus.loop`).
+
+
+## Atualização 55 — CREDITS da PC (cena 0x26)
+
+Ver `docs/PC_DIFF.md` §21: título DL → fade → `0x404710` (`CREDITS.PNZ` + `84.MP3`) → laço `0x404790` (1900 quadros ou centro) → título.

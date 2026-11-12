@@ -518,3 +518,8 @@ Full table in `docs/PC_DIFF.en.md` (generated with `tools/map_pc_dos.py` and `to
 ## Update 54 — PC options screen and per-screen code buffers
 
 See `docs/PC_DIFF.en.md` §19 (options, `083.DAT`, identical to Prex3) and §20 (code history separate and cleared per screen: mode, music). Looping music (`g_mus.loop`).
+
+
+## Update 55 — PC CREDITS (scene 0x26)
+
+See `docs/PC_DIFF.en.md` §21: title DL → fade → `0x404710` (`CREDITS.PNZ` + `84.MP3`) → loop `0x404790` (1900 frames or centre) → title.

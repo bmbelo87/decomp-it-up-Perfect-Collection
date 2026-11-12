@@ -139,3 +139,8 @@ Título da PC: UR seleciona OPTIONS e UR de novo abre a cena 0x1C (`piu_pc`: est
 
 
 **Transição (pedido do usuário):** o título esmaece (30 quadros) ao abrir as opções e as opções entram esmaecendo; o EXIT só volta ao título, sem efeito.
+
+
+## 21. Tela de créditos (cena 0x26)
+
+**Confirmado** no `pumpy.exe`: no título, DL seleciona CREDITS e DL de novo faz o fade (30 quadros) e põe a cena `0x26` (`0x403EA4`). Init `0x404710`: carrega `TITLE\CREDITS.PNZ` (`0x4046B0`) e toca `AUDIO\84.MP3` (`0x405CE0`); laço `0x404790`: desenha a imagem 640x480 em tela cheia (`glDrawPixels`) por até `0x76C` (1900) quadros, ou até o centro (bits `0x404`); ao sair para a música (`0x405D90`) e volta ao título (`0x403DA0`). Repetição da música [inferida]. `piu_pc`: estado `S_CREDITS`. Verificado por captura; não jogado.

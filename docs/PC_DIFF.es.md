@@ -139,3 +139,8 @@ Título de la PC: UR selecciona OPTIONS y UR otra vez abre la escena 0x1C (`piu_
 
 
 **Transición (pedido del usuario):** el título se desvanece (30 cuadros) al abrir las opciones y las opciones entran desvaneciéndose; EXIT solo vuelve al título, sin efecto.
+
+
+## 21. Pantalla de créditos (escena 0x26)
+
+**Confirmado** en `pumpy.exe`: en el título, DL selecciona CREDITS y DL otra vez hace el fade (30 cuadros) y pone la escena `0x26` (`0x403EA4`). Init `0x404710`: carga `TITLE\CREDITS.PNZ` (`0x4046B0`) y reproduce `AUDIO\84.MP3` (`0x405CE0`); bucle `0x404790`: dibuja la imagen 640x480 a pantalla completa (`glDrawPixels`) hasta `0x76C` (1900) cuadros, o hasta el centro (bits `0x404`); al salir detiene la música (`0x405D90`) y vuelve al título (`0x403DA0`). Repetición de la música [inferida]. `piu_pc`: estado `S_CREDITS`. Verificado por captura; no jugado.

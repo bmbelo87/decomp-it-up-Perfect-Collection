@@ -538,7 +538,7 @@ static int chart_path(char *out, size_t sz, int id, int d)
 }
 
 /* ------------------------------------------------------------------ jogo */
-enum { S_PLAY, S_MODE, S_MCONF, S_WHEEL, S_LOAD, S_END, S_WLOAD, S_IDLE, S_LOGO, S_INTRO, S_TITLE, S_VIEW, S_OPTION };   /* original: DAT_00153710 = 0 idle, 0xD/0xE logo, 0x10/0x11 intro, 0x13/0x14 title, 0xB selecao */
+enum { S_PLAY, S_MODE, S_MCONF, S_WHEEL, S_LOAD, S_END, S_WLOAD, S_IDLE, S_LOGO, S_INTRO, S_TITLE, S_VIEW, S_OPTION, S_CREDITS };   /* original: DAT_00153710 = 0 idle, 0xD/0xE logo, 0x10/0x11 intro, 0x13/0x14 title, 0xB selecao */
 static int g_state = S_IDLE;
 static ResSet g_arrow;       /* BGA/00.DAT */
 static Spr *g_sp541, *g_sp542;
@@ -959,6 +959,7 @@ static void goto_idle(void) { music_stop(); bga_unload(&g_ab); g_state = S_IDLE;
  *    sel==3 + bit 2 = WM_CLOSE (sair). Sem 82.BGA: 00.BGA da PC = bolhas PRESS CENTER STEP / PLEASE INSERT COIN (0x404A0E: +0 P1, +30 P2 com credito; +60/+90 sem).
  *  [INFERIDO] qual canto cada bit fisico do pad PC representa (piukey.cfg ainda nao decifrado); as cenas 0x1C e 0x26 ainda nao sao reproduzidas. */
 static void opt_enter(void);
+static void cr_enter(void);
 static int g_ofade;      /* PC: esmaecimento do titulo (1..30) antes de abrir as opcoes */
 static BgaRun g_b00; static int g_tsel, g_tfade, g_tfn, g_tkey[2], g_ovc, g_quit;
 static void enter_title(void)
@@ -977,6 +978,9 @@ static void enter_title(void)                                                   
 }
 #endif
 #ifndef PIU_BUILD_PC
+static void cr_step(void) {}
+static void cr_key(SDL_Keycode k) { (void)k; }
+static void draw_credits(void) {}
 static void opt_step(void) {}
 static void opt_key(SDL_Keycode k) { (void)k; }
 static void draw_option(void) {}      /* Arcade: sem tela de opcoes */
@@ -1008,7 +1012,7 @@ static void attract_step(void)
         /* 0x403E20 */
         if (g_ofade) { g_tkey[0] = g_tkey[1] = 0; if (++g_ofade > 30) { g_ofade = 0; opt_enter(); } break; }      /* esmaece o titulo e abre as opcoes */
         if (g_sflag & 3) g_scnt++;
-        if (g_tfade) { if (++g_tfn == 30) { g_tfn = 0; if (--g_tfade == 0) { goto_idle(); break; } } }   /* fade de saida (0x26: ainda nao reproduzida -> volta ao attract) */
+        if (g_tfade) { if (++g_tfn == 30) { g_tfn = 0; if (--g_tfade == 0) { cr_enter(); break; } } }   /* DL (CREDITS): fade de saida e cena 0x26 (0x403EA4) */
         if (g_scnt > 0x3C || (g_sflag & 3) == 3) { enter_select(); break; }
         g_bgaf = g_cnt % 300;
         g_ovc = (g_ovc + 1) > 0x3C ? 0 : g_ovc + 1;
@@ -1330,6 +1334,31 @@ static void opt_enter(void)
     }
     g_o_sel = 0; g_o_cnt = 0; g_o_ph = 0; g_tkey[0] = g_tkey[1] = 0; g_state = S_OPTION;
     music_stop(); if (music_load(83)) { g_mus.loop = 1; music_start(); }
+}
+/* CREDITS (cena 0x26 init 0x404710 / 0x27 laco 0x404790), aberta pelo canto baixo-esq (DL) do titulo depois do fade. [C] lido no pumpy.exe:
+ * carrega TITLE\CREDITS.PNZ (0x4046B0: "TITLE\%s.PNZ" + 0x402340 + 0x40B560), toca AUDIO\84.MP3 (0x405CE0; repeticao [I]) e desenha a imagem 640x480 em tela cheia
+ * (glDrawPixels, 0x42A14C). Termina com 0x76C (1900) quadros ou ao pisar no centro (bits 0x404 = centro P1/P2), parando a musica (0x405D90) e voltando ao titulo (0x403DA0). */
+static Tex g_crtex; static int g_crt;
+static void cr_enter(void)
+{
+    bga_unload(&g_ab);
+    if (g_crtex.id) { glDeleteTextures(1, &g_crtex.id); g_crtex.id = 0; }
+    char p[300]; size_t len; int ok; uint8_t *b;
+    path_of(p, sizeof p, "TITLE/CREDITS.PNZ"); b = piu_unpack_file(p, &len, &ok);
+    if (b) { g_crtex = tex_from_png(b, len); free(b); }
+    music_stop(); if (music_load(84)) { g_mus.loop = 1; music_start(); }
+    g_crt = 0; g_tkey[0] = g_tkey[1] = 0; g_state = S_CREDITS;
+}
+static void cr_leave(void) { music_stop(); enter_title(); }
+static void cr_step(void) { if (++g_crt >= 0x76c) cr_leave(); }
+static void cr_key(SDL_Keycode k)
+{
+    if (k == SDLK_ESCAPE || k == SDLK_s || k == SDLK_KP_5 || k == SDLK_RETURN || k == SDLK_KP_ENTER || k == SDLK_SPACE) cr_leave();
+}
+static void draw_credits(void)
+{
+    glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT); glColor4f(1, 1, 1, 1);
+    if (g_crtex.id) quad(&g_crtex, 0, 0, 640, 480, 0, 0, 1, 1);
 }
 static void opt_leave(void) { music_stop(); sfx_play(2, 5); enter_title(); }      /* Prex3: 2-1.WAV ao sair */
 static void opt_step(void)
@@ -2119,7 +2148,7 @@ int main(int argc, char **argv)
         if (!dbg && GetFileType(GetStdHandle((unsigned long)-12)) == 2 /* FILE_TYPE_CHAR */) FreeConsole();
     }
 #endif
-    int opt_start = 0, opt_sel0 = 0; int end_test = 0, end_testc = 0; int wheel_start = 0, wheel_dir = -1, conf_start = 0, mode_start = 0, svc_start = 0, autostart = -1, autodiff = 1, autotest = 0, testsec = 6; const char *shotpath = NULL; int noauto = 0, skip = 0; const char *viewname = NULL; int title_start = 0;
+    int opt_start = 0, opt_sel0 = 0, cr_start = 0; int end_test = 0, end_testc = 0; int wheel_start = 0, wheel_dir = -1, conf_start = 0, mode_start = 0, svc_start = 0, autostart = -1, autodiff = 1, autotest = 0, testsec = 6; const char *shotpath = NULL; int noauto = 0, skip = 0; const char *viewname = NULL; int title_start = 0;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-game") && i + 1 < argc) snprintf(g_dir, sizeof g_dir, "%s", argv[++i]);
         else if (!strcmp(argv[i], "-song") && i + 1 < argc) autostart = atoi(argv[++i]);
@@ -2138,6 +2167,7 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "-pmidx") && i + 1 < argc) g_pm_idx0 = atoi(argv[++i]) % 5;      /* teste: disco inicial 0..4 (NORMAL HARD DOUBLE NONSTOP CRAZY) */
 #endif
 #ifdef PIU_BUILD_PC
+        else if (!strcmp(argv[i], "-credits")) cr_start = 1;      /* teste: abre direto os creditos */
         else if (!strcmp(argv[i], "-option") && i + 1 < argc) { opt_start = 1; opt_sel0 = atoi(argv[++i]); }      /* teste: abre direto as opcoes com o item N */
 #endif
         else if (!strcmp(argv[i], "-title")) title_start = 1;          /* teste: abre direto o titulo */
@@ -2185,6 +2215,7 @@ int main(int argc, char **argv)
     if (viewname) { bga_load_name(&g_ab, viewname); g_state = S_VIEW; }
     if (title_start) enter_title();
 #ifdef PIU_BUILD_PC
+    if (cr_start) cr_enter();
     if (opt_start) { opt_enter(); g_o_ph = 1; g_o_sel = opt_sel0 % 5; }
 #endif
     if (autostart >= 0) { for (int i = 0; i < g_nsongs; i++) if (g_songs[i].id == autostart) g_sel = i; start_song(autodiff); }
@@ -2210,6 +2241,7 @@ int main(int argc, char **argv)
                 else if (k == SDLK_F3) { g_coins = 0; g_svio |= 4; }
                 else if (k == SDLK_F4 || k == SDLK_F5 || (0 /* '5' agora e centro do P2 */)) { if (!g_freeplay) { g_coins++; sfx_play(SFX_COIN, 0); } g_svio |= 8; }   /* 0x20470: FUN_30fac idx 0x15 */   /* 0x20424: moeda */
                 if (g_service) { if (k == SDLK_ESCAPE) svc_leave(); continue; }
+                if (g_state == S_CREDITS) { cr_key(k); continue; }
                 if (g_state == S_OPTION) { opt_key(k); continue; }
                 if (g_state >= S_IDLE) {
                     if (k == SDLK_ESCAPE) { bga_unload(&g_ab); g_state = S_IDLE; }     /* 0x20F37: ESC -> estado 0 */
@@ -2281,9 +2313,10 @@ int main(int argc, char **argv)
         if (g_quit) running = 0;      /* titulo: canto baixo-dir duas vezes = WM_CLOSE (0x40426F) */
 #endif
         { uint32_t now = SDL_GetTicks(); acc += now - t_prev; t_prev = now; if (acc > 250) acc = 250;
-          if (g_service) acc = 0; while (acc >= 1000.0 / 60.0) { acc -= 1000.0 / 60.0; if (g_state == S_OPTION) opt_step(); else if (g_state >= S_IDLE) attract_step(); else if (g_state == S_MODE) mode_step(); else if (g_state == S_MCONF) mconf_step(); else if (g_state == S_WHEEL) wheel_step(); else if (g_state == S_LOAD) load_step(); else if (g_state == S_WLOAD) wload_step(); else if (g_state == S_END) end_step(); } }
+          if (g_service) acc = 0; while (acc >= 1000.0 / 60.0) { acc -= 1000.0 / 60.0; if (g_state == S_CREDITS) cr_step(); else if (g_state == S_OPTION) opt_step(); else if (g_state >= S_IDLE) attract_step(); else if (g_state == S_MODE) mode_step(); else if (g_state == S_MCONF) mconf_step(); else if (g_state == S_WHEEL) wheel_step(); else if (g_state == S_LOAD) load_step(); else if (g_state == S_WLOAD) wload_step(); else if (g_state == S_END) end_step(); } }
         set_view(); glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT); glColor4f(1, 1, 1, 1);
-        if (g_state == S_OPTION) draw_option();
+        if (g_state == S_CREDITS) draw_credits();
+        else if (g_state == S_OPTION) draw_option();
         else if (g_state >= S_IDLE) draw_attract();
         else if (g_state == S_MODE) draw_mode(); else if (g_state == S_MCONF) draw_mconf(); else if (g_state == S_WHEEL) draw_wheel(); else if (g_state == S_LOAD) draw_load(); else if (g_state == S_WLOAD) draw_wload(); else if (g_state == S_END) draw_end(); else if (g_state == S_PLAY) draw_play();
         if (g_state == S_MODE || g_state == S_WHEEL || g_state == S_PLAY) draw_mods();

@@ -139,3 +139,8 @@ PC title: UR selects OPTIONS and UR again opens scene 0x1C (`piu_pc`: state `S_O
 
 
 **Transition (user request):** the title fades out (30 frames) when opening options and the options fade in; EXIT just returns to the title, no effect.
+
+
+## 21. Credits screen (scene 0x26)
+
+**Confirmed** in `pumpy.exe`: on the title, DL selects CREDITS and DL again fades (30 frames) and sets scene `0x26` (`0x403EA4`). Init `0x404710`: loads `TITLE\CREDITS.PNZ` (`0x4046B0`) and plays `AUDIO\84.MP3` (`0x405CE0`); loop `0x404790`: draws the 640x480 image full screen (`glDrawPixels`) for up to `0x76C` (1900) frames, or until centre (bits `0x404`); on exit it stops the music (`0x405D90`) and returns to the title (`0x403DA0`). Music repeat [inferred]. `piu_pc`: state `S_CREDITS`. Checked by screenshot; not played.
