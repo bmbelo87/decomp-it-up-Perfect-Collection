@@ -1511,6 +1511,11 @@ static void orig_text(float x, float y, const char *str)       /* FUN_00026658 /
     }
     glPopMatrix();
 }
+#ifdef PIU_BUILD_PC
+#define TIME_Y 437      /* pumpy.exe 0x40D4D0(584, 0x1B5, n): 8 px acima do Arcade; mesmos glifos 48x40 (0x40D530) */
+#else
+#define TIME_Y 429
+#endif
 static void orig_time(BgaRun *b, int n)                       /* FUN_0002A672(584, 429, n): 2 digitos de 02.TGA (celulas 48x40, 5 por linha, v0 = 162 + (d/5)*40), da direita p/ esquerda, passo -40 */
 {
     Tex *t = b->ok ? rs_tex(&b->rs, "02.tga") : NULL; if (!t) return;
@@ -1518,7 +1523,7 @@ static void orig_time(BgaRun *b, int n)                       /* FUN_0002A672(58
     glPushMatrix(); glTranslatef(0, 480, 0); glScalef(1, -1, 1); glColor4f(1, 1, 1, 1);
     for (int i = 0; i < 2; i++) {
         int d = n % 10; n /= 10; float u = (d % 5) * 48.f, v = 162.f + (d / 5) * 40.f;
-        quad(t, 584.f - 40 * i, 429, 48, 40, u / t->w, (v + 40) / t->h, (u + 48) / t->w, v / t->h);
+        quad(t, 584.f - 40 * i, TIME_Y, 48, 40, u / t->w, (v + 40) / t->h, (u + 48) / t->w, v / t->h);
     }
     glPopMatrix();
 }

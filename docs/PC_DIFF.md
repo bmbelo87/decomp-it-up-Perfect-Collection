@@ -119,3 +119,6 @@ Cena 5 (0x40A210): contador `0x80B754`; 83.BGA no quadro 600+cnt%480; a partir d
 - [C] Tabela de 3 toques (0x42E020): **Q Q Q** (UL UL UL) cicla a velocidade none>2X>4X>8X>raccel(0x200)>none a cada toque (o historico fica QQQ, entao o 4o Q avanca de novo); **E E E** (UR UR UR) cicla ao contrario (none>raccel>8X... com o encadeamento do original: raccel>4X).
 - [C] Mudou algo -> efeito indice 2 (obj 0xB6633C = "2-1"). Arcade usava idx 1.
 - [C] Setas centrais: Q/E (UL/UR) segurados desenham as camadas 19/20 do 099.BGA (quadro 150+cnt%120); a roda de musicas tem o mesmo guia (0x40E050) que o modo, com a capa em (320,325).
+
+## 17. Timer
+- [C] `0x40D4D0(584, 0x1B5, n)`: o timer da PC fica em y=437 (y para cima), 8 px acima do Arcade (429). Glifos 02.TGA iguais (celulas 48x40, 5 por linha, v0=162; passo -40, 2 digitos).
