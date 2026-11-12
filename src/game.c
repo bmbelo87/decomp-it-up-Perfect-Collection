@@ -452,8 +452,14 @@ static void sfx_play(int idx, int ch)
 static int music_load_pfx(const char *pfx, int id)
 {
     free(g_mus.pcm); memset((void *)&g_mus, 0, sizeof g_mus);
+#ifdef PIU_BUILD_PC
+    /* PC: AUDIO\%03d.MP3 / AUDIO\D%03d.MP3 (0x405EC0/0x405F00) sao MP3 puros (no Arcade, .AUD empacotado) */
+    char p[300]; path_of(p, sizeof p, "AUDIO/%s%03d.MP3", pfx, id);
+    size_t len = 0; int ok = 1; uint8_t *mp3 = slurp(p, &len);
+#else
     char p[300]; path_of(p, sizeof p, "AUDIO/%s%03d.AUD", pfx, id);
     size_t len; int ok = 0; uint8_t *mp3 = piu_unpack_file(p, &len, &ok);
+#endif
     if (!mp3) return 0;
     drmp3_config cfg = { 2, (drmp3_uint32)g_arate }; drmp3_uint64 frames = 0;
     drmp3_int16 *pcm = drmp3_open_memory_and_read_pcm_frames_s16(mp3, len, &cfg, &frames, NULL);
@@ -1039,7 +1045,13 @@ static void draw_title_overlay(void)            /* FUN_00020134 (func_20134): cr
     glColor4f(1, 1, 1, 1);
     glPushMatrix(); glTranslatef(0, 480, 0); glScalef(1, -1, 1);
     if (g_freeplay) {
-        if ((tl = sp2_find_x(g_sp542, "freeply"))) { glPushMatrix(); glTranslatef(320, 13, 0); tile_up(&g_arrow, tl, 0, 0); glPopMatrix(); }      /* 0x83C7B86 em (0x140, 0x0D) */
+#ifdef PIU_BUILD_PC
+        /* PC: sem sprite FREE PLAY (empirico, usuario) */
+        if (0 && (tl = sp2_find_x(g_sp542, "freeply"))) { glPushMatrix();
+#else
+        if ((tl = sp2_find_x(g_sp542, "freeply"))) { glPushMatrix();
+#endif
+        glTranslatef(320, 13, 0); tile_up(&g_arrow, tl, 0, 0); glPopMatrix(); }      /* 0x83C7B86 em (0x140, 0x0D) */
     } else {
         /* sem free play: credit(s) em (263, 22) + creditos em (360, 25); com moeda parcial: credit em (239, 22), creditos (338,25), '(' (354,21), restante (358,25), '/' (372,21),
          * moedas por credito (388|378, 25) e ')' (400|390, 21). Tiles credit/left__/right_/slash_ do ARROW541. */
@@ -1829,7 +1841,7 @@ int main(int argc, char **argv)
     SDL_GLContext ctx = SDL_GL_CreateContext(g_win); SDL_GL_SetSwapInterval(1);
     glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); glDisable(GL_DEPTH_TEST);
     font_init(); audio_init(); songs_load(); svc_load(); if (conf_start) { g_m_sel = conf_start; bga_load_name(&g_ab, "097"); g_m_anim = 0; g_state = S_MCONF; }
-    if (mode_start) { g_sflag = mode_start == 2 ? 3 : 1; mode_enter(); }
+    if (mode_start) { g_sflag = mode_start == 2 ? 3 : 1; mode_enter(); if (music_load(2)) music_start(); }      /* teste: tambem toca a musica do MODE SELECT (AUDIO 002) */
     if (end_test) { g_ps[0].score = 1234567; g_ps[0].life = 940; g_ps[0].cnt[0] = 120; g_ps[0].cnt[1] = 45; g_ps[0].cnt[2] = 12; g_ps[0].cnt[3] = 3; g_ps[0].cnt[4] = 7; g_mcp[0] = 88; g_fl = 0x20; g_m_sel = 2; g_sflag = 1; end_start(end_test); g_pc = end_testc; }
     if (wheel_start) {                                          /* teste: abre direto a roda (-wheel MODO [-wdir 0|1|2|3]) */
         static const char *const BG[7] = { "091", "091", "092", "094", "093", "095", "096" };
