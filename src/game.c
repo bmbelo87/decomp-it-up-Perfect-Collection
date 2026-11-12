@@ -344,14 +344,11 @@ static int bga_load_name(BgaRun *b, const char *name)
 }
 static int bga_load(BgaRun *b, int id)
 {
-#ifdef PIU_BUILD_PC
-    /* pumpy.exe 0x40965C..0x4096E6 [C]: musicas 116..119 e 219..224 (Remix) usam sempre o BGA universal BGA\116.DAT; as demais tentam BGA\%03d.DAT e, se falhar, caem no 116.DAT */
+    /* BGA universal das Remix: 116..119 e 219..224 usam sempre BGA/116.DAT; as demais tentam BGA/%03d.DAT e, se falhar, caem em 116.DAT.
+     * [C] pumpy.exe 0x40965C..0x4096E6 (PC); [empirico, usuario] vale tambem para o Arcade. */
     if ((id >= 116 && id <= 119) || (id >= 219 && id <= 224)) return bga_load_name(b, "116");
     char n[16]; snprintf(n, sizeof n, "%03d", id);
     return bga_load_name(b, n) || bga_load_name(b, "116");
-#else
-    char n[16]; snprintf(n, sizeof n, "%03d", id); return bga_load_name(b, n);
-#endif
 }
 static float g_afade = 1.0f;      /* fator de alfa global das camadas (0x42D034 da PC, ajustado por 0x4012F0); 1 = sem efeito */
 static void bga_draw_n(BgaRun *b, int frame, int only)   /* only >= 0: so a camada `only` (FUN_0002647A); -1: todas (FUN_0002643C) */

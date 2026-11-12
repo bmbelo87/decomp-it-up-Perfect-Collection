@@ -507,4 +507,4 @@ Tabela completa em `docs/PC_DIFF.md` (gerada com `tools/map_pc_dos.py` e `tools/
 
 ## Atualização 52 — BGA universal das Remix (PC: `BGAN.DAT`)
 
-**Confirmado** em `pumpy.exe` `0x40965C..0x4096E6`: as músicas 116–119 e 219–224 (Remix sem `.dat` próprio: 117, 118, 119, 219, 220, 221, 223, 224) usam sempre `BGAN.DAT`; as demais tentam `BGA\%03d.DAT` e, se o arquivo falha, caem em `116.DAT`. `116.DAT` tem `116.BGA` (50 layers, 120 BPM, chaves com cor r,g,b,a que alternam o fundo) + sprites ANI (`at01..15`, `s01..15`, `t01..15`). `bga_load` (só `piu_pc`) aplica a regra. Verificado por captura (túnel azul → vermelho); não jogado.
+**Confirmado** em `pumpy.exe` `0x40965C..0x4096E6`: as músicas 116–119 e 219–224 (Remix sem `.dat` próprio: 117, 118, 119, 219, 220, 221, 223, 224) usam sempre `BGAN.DAT`; as demais tentam `BGA\%03d.DAT` e, se o arquivo falha, caem em `116.DAT`. `116.DAT` tem `116.BGA` (50 layers, 120 BPM, chaves com cor r,g,b,a que alternam o fundo) + sprites ANI (`at01..15`, `s01..15`, `t01..15`). `bga_load` aplica a regra no Arcade e na PC (empírico: usuário). Verificado por captura (túnel azul → vermelho); não jogado.
