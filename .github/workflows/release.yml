@@ -39,7 +39,7 @@ jobs:
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release
-      - name: Empacotar (duas edicoes: Arcade e PC)
+      - name: Empacotar (duas edicoes - Arcade e PC)
         shell: bash
         run: |
           mkdir -p pkgA pkgP
