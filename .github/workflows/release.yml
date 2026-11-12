@@ -43,7 +43,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p pkg
-          if [ "${{ runner.os }}" = "Windows" ]; then cp build/Release/piu.exe pkg/piu.exe; cp jogar.bat pkg/; else cp build/piu pkg/piu; fi
+          if [ "${{ runner.os }}" = "Windows" ]; then cp build/Release/piu.exe pkg/piu.exe; cp build/Release/piu_pc.exe pkg/piu_pc.exe; cp jogar.bat pkg/; else cp build/piu pkg/piu; cp build/piu_pc pkg/piu_pc; fi
           cp README.md LogoIA.png icon.png pkg/
           cd pkg
           if [ "${{ runner.os }}" = "Windows" ]; then 7z a ../PiuReconstructed-${{ matrix.name }}.zip . ; else tar czf ../PiuReconstructed-${{ matrix.name }}.tar.gz . ; fi

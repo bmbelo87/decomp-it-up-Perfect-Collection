@@ -32,7 +32,15 @@
 #define GL_CLAMP_TO_EDGE 0x812F
 #endif
 
-static char g_dir[260] = "../game";
+/* Duas builds do mesmo codigo: ARCADE (PIU.EXE, 18/12/2000; padrao) e PC (pumpy.exe, 16/04/2001; -DPIU_BUILD_PC, alvo piu_pc) */
+#ifdef PIU_BUILD_PC
+#define PIU_DEF_DIR "../game_pc"
+#define PIU_TITLE "Pump It Up - Perfect Collection (PC, pumpy.exe reconstruido)"
+#else
+#define PIU_DEF_DIR "../game"
+#define PIU_TITLE "Pump It Up (PIU.EXE reconstruido)"
+#endif
+static char g_dir[260] = PIU_DEF_DIR;
 static SDL_Window *g_win;
 static int g_winw = 800, g_winh = 600;
 
@@ -1558,10 +1566,10 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "-shot") && i + 1 < argc) shotpath = argv[++i];
     }
     { char t[320]; snprintf(t, sizeof t, "%s/STAGE.CFG", g_dir); FILE *f = fopen(t, "rb");
-      if (f) fclose(f); else { char *bp = SDL_GetBasePath(); if (bp) { snprintf(g_dir, sizeof g_dir, "%s../game", bp); SDL_free(bp); } } }
+      if (f) fclose(f); else { char *bp = SDL_GetBasePath(); if (bp) { snprintf(g_dir, sizeof g_dir, "%s" PIU_DEF_DIR, bp); SDL_free(bp); } } }
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS) < 0) { logf_("SDL: %s\n", SDL_GetError()); return 1; }
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    g_win = SDL_CreateWindow("Pump It Up (PIU.EXE reconstruido)", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, g_winw, g_winh, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+    g_win = SDL_CreateWindow(PIU_TITLE, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, g_winw, g_winh, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
     if (!g_win) { logf_("janela: %s\n", SDL_GetError()); return 1; }
     SDL_GLContext ctx = SDL_GL_CreateContext(g_win); SDL_GL_SetSwapInterval(1);
     glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); glDisable(GL_DEPTH_TEST);
