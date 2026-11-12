@@ -67,3 +67,12 @@ Nada contradiz ate agora [I]: mesmos `.NOT`, mesmo `83.dat`, mesmos nomes de ran
 6. Gameplay/Grade: validar igualdade; ajustar o que divergir.
 7. Entrada: decifrar `piukey.cfg`.
 8. Game Over PC (`083.dat`/`083.mp3`).
+
+## 7. Titulo PC (82.dat) - implementado [C no assembly 0x403E20; I onde indicado]
+- Fundo `82.BGA` roda em `cnt%300` (Arcade `%180`); camadas: `1020+cnt%120` sempre, `900+cnt%120` com selecao, e por selecao 7->300, 1->420, 9->540, 3->660, demais->780 (+cnt%120).
+- Menu de 4 cantos (confirmado visualmente nos frames do `82.BGA`): cima-esq **START** (7), cima-dir **OPTION** (9), baixo-esq **CREDITS** (1), baixo-dir **EXIT** (3); texto "SELECT YOUR MENU".
+- Logica: 1o toque no canto = seleciona; 2o toque no mesmo = confirma. START com credito = entra (`scnt=0x3C`); EXIT = `WM_CLOSE`; CREDITS = fade de 30 quadros e cena 0x26; OPTION = cena 0x1C (`083.dat`/`083.mp3`, 5 itens - **ainda nao reproduzida**; o que eu chamei de "Game Over" na secao 2 e, na verdade, a tela de opcoes [I]).
+- Bolhas `PRESS CENTER STEP` / `PLEASE INSERT COIN` vem do `00.BGA` da PC (frames +0/+30 com credito, +60/+90 sem; `ovc%30`).
+- Versao `printf("%d%02d", 4, 1)` = **401** em (601,458) preto e (600,459) branco (Arcade 352).
+- [I] qual tecla fisica do pad PC corresponde a cada bit (piukey.cfg ainda nao decifrado): no `piu_pc` P1 = Z C Q E, P2 = numpad 1 3 7 9 (bits 1 2 8 0x10). Teste empirico pendente.
+- Teste: `piu_pc.exe -game <pasta PC> -title -freeplay -selftest 3 -shot f.ppm`.
