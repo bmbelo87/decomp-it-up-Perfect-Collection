@@ -1610,6 +1610,9 @@ static void code_key(int k)                                      /* teclas do pa
     else if (k == SDLK_q || k == SDLK_KP_7) b = 8; else if (k == SDLK_e || k == SDLK_KP_9) b = 0x10;
     if (b && (g_sflag >> pl & 1)) code_press(pl, b);                     /* so jogador que entrou */
 }
+#ifdef PIU_BUILD_PC
+static void pw_begin(void);
+#endif
 static void wheel_begin(void)
 {
     /* FUN_2B695 (chamada por func_2b763/func_2c63f so com DAT 0x81206CE == 0, i.e. 1o estagio do credito): torna todas as entradas visiveis de novo. Confirmado no ELF. */
@@ -1619,6 +1622,9 @@ static void wheel_begin(void)
      * REMIXDB (0x200) e REMIXCZ (0x800) existem no codigo mas quem liga essas flags nao foi achado: inferido = REMIX jogado em double / crazy. */
     { static const int SECOF[7] = { 0, 0, 1, 3, 2, 0, 5 }; g_w_sec = SECOF[g_m_sel]; }
     wheel_list();
+#ifdef PIU_BUILD_PC
+    pw_begin(); return;
+#endif
     g_w_pos = 0; g_m_frame = g_m_anim = 0; g_m_dir = g_m_prev = -1; g_m_t0 = 0; g_state = S_WHEEL;     /* 0x2C63F: 17A4=0, 1794=1788=-1, 179C=0, fase 5 */
 }
 /* Tela LOAD n (FUN_2C63F, 0x2C689..0x2C6A2): apos o DANCE GRADE, ao voltar a roda de musicas, TITLE\LOAD%d.PNZ (n = estagios jogados, DAT 0x81206CE) via FUN_2A533 (mesma rotina da T%03d).
@@ -1675,14 +1681,103 @@ static void wheel_items(void)                                /* FUN_0002B0DD: co
 }
 static int g_load_di, g_load_t;
 static void load_back(int id);
-static void wheel_step(void)
+#ifdef PIU_BUILD_PC
+/* ------------------------------------------------------------------ RODA DE MUSICAS da build PC (pumpy.exe cena 0xB fases 8-11: 0x40EA30 init, 0x40EC10 espera, 0x40EC50 laco, 0x40E050 carrossel de capas, 0x40C150 nivel)
+ * [C] mesmo esqueleto da escolha de modo (pm_*): fundo = camada de cor do modo no quadro 630+, 099.BGA quadro 0 (cabecalho MUSIC SELECT), setas 27/28/30/31 no quadro 90+,
+ * carrossel de 9 capas 220x162 (CDxx.TGA da 90.dat, recorte 2x2 de 128x96) nas mesmas posicoes do de modos; centro confirma duas vezes; previa D%03d.mp3 apos 30 quadros apontando o centro (0x40F0B4).
+ * Digito do nivel: 07.TGA celulas 24x24 (tabela 0x42E090) em (320,179)-(344,203) y-para-cima. Lista por modo = a mesma do Arcade (secoes do STAGE.CFG). [I] tempo (30 s como no Arcade; a PC usa outro relogio 0x404E20). */
+static int g_pw_ph, g_pw_cnt, g_pw_cnt2, g_pw_dir = -1, g_pw_prev = -2, g_pw_t0;
+static void pw_cover(int id)
 {
-    int remain = 30 - g_m_t0 / 60;
-    if (g_m_anim == 0) {
-        if (g_m_dir == 2) { g_w_pos -= 2; if (g_w_pos < 0) g_w_pos += g_w_n; }
-        else if (g_m_dir == 3) { g_w_pos += 2; if (g_w_pos >= g_w_n) g_w_pos -= g_w_n; }
+    for (int r = 0; r < 30; r++) for (int j = 0; j < 4; j++) if (CD_TBL[r][j] == id) {
+        char nm[16]; snprintf(nm, sizeof nm, "CD%02d", CD_SHEET[r]);
+        Tex *tx = g_bars_ok ? rs_tex(&g_bars, nm) : NULL; if (!tx) return;
+        int c = j % 2, w = j / 2;
+        quad(tx, -110, -81, 220, 162, c * 0.5f, w * 0.375f, (c + 1) * 0.5f, (w + 1) * 0.375f);       /* 0x40DE70: u=col*0.5, v=row*0.375 */
+        return;
     }
-    if (!((g_m_prev == g_m_dir && g_m_prev != -1 && g_m_dir < 2) || remain < 1)) { g_m_anim++; g_m_frame++; g_m_t0++; return; }
+}
+static void pw_begin(void)
+{
+    bga_unload(&g_ab); bga_unload(&g_ab2); bga_load_name(&g_ab, "099");
+    if (!g_bars_ok) { char p[300]; path_of(p, sizeof p, "BGA/90.DAT"); g_bars_ok = rs_open(&g_bars, p) == 0; }
+    g_w_pos = 0; g_pw_ph = 9; g_pw_cnt = g_pw_cnt2 = 0; g_pw_dir = -1; g_pw_prev = -2; g_pw_t0 = 0; g_m_dir = g_m_prev = -1; g_state = S_WHEEL;
+}
+static void pw_press(int d)
+{
+    if (g_pw_ph != 10 || g_pw_cnt <= 3) return;
+    g_pw_prev = g_pw_dir; g_pw_dir = d; g_pw_cnt = 0; if (d >= 2) sfx_play(SFX_MOVE, 4);
+}
+static void wheel_commit(void);
+static void pw_step(void)
+{
+    if (g_pw_ph == 9) { g_pw_cnt++; g_pw_cnt2 += 2; if (g_pw_cnt >= 30) { g_pw_ph = 10; g_pw_cnt = 0; g_pw_t0 = 0; } return; }      /* 0x40EC10 */
+    int remain = 30 - g_pw_t0 / 60;
+    if (g_pw_cnt == 0) {
+        if (g_pw_dir == 2) { if (--g_w_pos < 0) g_w_pos = g_w_n - 1; } else if (g_pw_dir == 3) { if (++g_w_pos >= g_w_n) g_w_pos = 0; }
+    }
+    if (g_pw_prev != g_pw_dir && g_pw_cnt == 30 && g_pw_dir == 0) { if (music_load_pfx("D", g_songs[w_song(0)].id)) music_start(); }      /* 0x40F0B4 */
+    g_pw_cnt++; g_pw_cnt2 += 2; g_pw_t0++;
+    if ((g_pw_prev == g_pw_dir && g_pw_dir == 0) || remain < 1) {                  /* 0x40F112: centro duas vezes (ou tempo esgotado) */
+        g_m_dir = 0; wheel_commit();
+    }
+}
+static void pw_level(int lv)     /* 0x40C150/0x40C180 */
+{
+    static const int T[10][2] = { { 186, 0 }, { 208, 0 }, { 232, 0 }, { 162, 24 }, { 186, 24 }, { 208, 24 }, { 232, 24 }, { 162, 48 }, { 186, 48 }, { 208, 48 } };
+    if (lv < 1) return;
+    if (lv > 10) lv = 10;
+    Tex *tx = rs_tex(&g_ab.rs, "07"); if (!tx) return;
+    float u = T[lv - 1][0] / 256.f, v = T[lv - 1][1] / 256.f;
+    quad(tx, 320, 277, 24, 24, u, v, u + 0.09375f, v + 0.09375f);
+}
+static void pw_carousel(int sh)
+{
+    int e = sh > 0 ? 1 : sh < 0 ? -1 : 0;
+    for (int pass = 0; pass < 2; pass++) {
+        int a = pass ? -4 : 4, b = pass ? 0 : 1, st = pass ? 1 : -1;
+        for (int slot = a; pass ? slot <= b : slot >= b; slot += st) {
+            float p = fabsf((float)slot + 0.05f * sh), al = 1.f - p * 0.25f, sc = 1.f - p * 0.1f;
+            if (slot == 0 && e == 0 && (g_pw_dir == 0 || g_pw_dir == 1)) sc = 1.1f;
+            glPushMatrix(); glTranslatef(pm_slot_x(slot, e, sh), 147, 0); glScalef(sc, sc, 1);
+            glColor4f(1, 1, 1, al); pw_cover(g_songs[w_song(slot + e)].id);
+            glPopMatrix();
+        }
+    }
+    glColor4f(1, 1, 1, 1);
+}
+static void pw_draw(void)
+{
+    glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT);
+    if (g_pw_ph == 9 || !g_w_n) return;                                    /* 0x40EC10 nao desenha nada */
+    static const int F[7] = { 0, 0x10, 0x20, 0x100, 0x80, 0x40, 0x400 };
+    int fl = F[g_m_sel]; if (g_m_sel == 3 && g_w_sec == 4) fl = 0x200; else if (g_w_sec == 6) fl = 0x800;
+    int L = fl == 0x10 ? 6 : fl == 0x20 ? 5 : fl == 0x80 ? 4 : (fl == 0x100 || fl == 0x200 || fl == 0x800) ? 3 : fl == 0x400 ? 1 : 2;
+    bga_draw_n(&g_ab, 630 + g_pw_cnt2 % 30, L);
+    bga_draw(&g_ab, 0);
+    for (int e = 2; e <= 3; e++) {                                         /* 0x40ED03: setas SHIFT animadas */
+        int c = (g_pw_dir == e && g_pw_cnt < 90) ? g_pw_cnt : 0;
+        if (e == 2) { bga_draw_n(&g_ab, 90 + c, 27); bga_draw_n(&g_ab, 90 + c, 28); } else { bga_draw_n(&g_ab, 90 + c, 30); bga_draw_n(&g_ab, 90 + c, 31); }
+    }
+    bga_draw_n(&g_ab, 45, 27); bga_draw_n(&g_ab, 45, 28); bga_draw_n(&g_ab, 45, 29);      /* textos do guia SHIFT LEFT / CONFIRM / SHIFT RIGHT (D04/D03/D02.SPR), como na escolha de modo [I: nao ha chamada propria em 0x40EC50] */
+    int sh = 0; if (g_pw_dir == 2 && g_pw_cnt < 20) sh = g_pw_cnt; else if (g_pw_dir == 3 && g_pw_cnt < 20) sh = -g_pw_cnt;
+    pw_carousel(sh);
+    if (!sh) pw_level(g_sec[g_w_sec][g_w_list[w_idx(0)]].lv);
+    orig_time(&g_ab, 30 - g_pw_t0 / 60);
+    {   /* baloes 1P/2P (0x40F190): mesma logica de pm_bubbles, "apos apontar" quando dir != -1 */
+        int c = g_pw_cnt % 90, sf = g_sflag, ca = cred_avail() != 0, post = g_pw_dir != -1, Lb, Bb;
+        if (sf & 1) { Lb = post ? 40 : 42; Bb = post ? 570 : 390; } else if (sf & 0x280) { Lb = 39; Bb = 660; } else if (ca) { Lb = 43; Bb = 300; } else { Lb = 44; Bb = 210; }
+        bga_draw_n(&g_ab, c + Bb, Lb);
+        if (sf & 2) { if (post) bga_draw_n(&g_ab, c + 570, 34); else bga_draw_n(&g_ab, c + 390, 36); }
+        else if (sf & 0x280) bga_draw_n(&g_ab, c + 660, 33); else if (ca) bga_draw_n(&g_ab, c + 300, 37); else bga_draw_n(&g_ab, c + 210, 38);
+    }
+    {   const SprTile *tl = g_freeplay ? sp2_find_x(g_sp542, "freeply") : NULL;
+        if (tl) { glPushMatrix(); glTranslatef(0, 480, 0); glScalef(1, -1, 1); glColor4f(1, 1, 1, 1); glPushMatrix(); glTranslatef(320, 13, 0); tile_up(&g_arrow, tl, 0, 0); glPopMatrix(); glPopMatrix(); }
+    }
+}
+#endif
+static void wheel_commit(void)      /* fim da escolha (centro confirmado ou tempo esgotado): FUN_2CDE3/2CDFA - esconde a musica, escolhe o passo pelas flags e vai para LOAD */
+{
     if (g_m_dir == -1 || g_m_dir > 1) g_m_dir = 0;
     music_stop();                                     /* fim do preview (Dxxx.AUD) ao escolher */
     { SEnt *cur = &g_sec[g_w_sec][g_w_list[w_idx(g_m_dir)]];      /* FUN_2B6BC(secao atual, id) em func_2cdfa: esconde da roda a musica escolhida (so nesta secao) ate o proximo credito */
@@ -1702,6 +1797,19 @@ static void wheel_step(void)
       else di = two ? 3 : 0;
       g_fl = fl; bga_unload(&g_ab); bga_unload(&g_ab2); g_load_di = di; g_load_t = 0; g_state = S_LOAD; }       /* tela de loading (T%03d.PNZ), depois start_song */
 }
+static void wheel_step(void)
+{
+#ifdef PIU_BUILD_PC
+    pw_step(); return;
+#endif
+    int remain = 30 - g_m_t0 / 60;
+    if (g_m_anim == 0) {
+        if (g_m_dir == 2) { g_w_pos -= 2; if (g_w_pos < 0) g_w_pos += g_w_n; }
+        else if (g_m_dir == 3) { g_w_pos += 2; if (g_w_pos >= g_w_n) g_w_pos -= g_w_n; }
+    }
+    if (!((g_m_prev == g_m_dir && g_m_prev != -1 && g_m_dir < 2) || remain < 1)) { g_m_anim++; g_m_frame++; g_m_t0++; return; }
+    wheel_commit();
+}
 static void load_step(void)            /* FUN_2A533: carrega e desenha TITLE\T%03d.PNZ da musica; depois FUN_2058F inicia o jogo. Duracao: empirico (~1,5 s) */
 {
     if (++g_load_t < 90) return;
@@ -1716,6 +1824,9 @@ static void draw_load(void)
 }
 static void draw_wheel(void)
 {
+#ifdef PIU_BUILD_PC
+    pw_draw(); return;
+#endif
     int remain = 30 - g_m_t0 / 60, local = 0;
     glColor4f(1, 1, 1, 1);
     glPushMatrix(); glTranslatef(320, 240, 0); glRotatef(g_m_frame * 0.06f, 0, 0, 1); glTranslatef(-320, -240, 0);   /* fundo colorido gira devagar */
@@ -1909,6 +2020,13 @@ int main(int argc, char **argv)
                     else if (k == SDLK_KP_5 || k == SDLK_KP_ENTER || k == SDLK_KP_PLUS) g_start2 = 1;   /* centro do P2 = Num 5 */
                 } else if (g_state == S_MCONF) {
                     if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); g_state = S_IDLE; }
+#ifdef PIU_BUILD_PC
+                } else if (g_state == S_WHEEL) {      /* PC: bit 1 = shift esq, bit 2 = shift dir, centro = confirma (como na escolha de modo) */
+                    if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); bga_unload(&g_ab2); g_state = S_IDLE; }
+                    else if (k == SDLK_z || k == SDLK_KP_1 || k == SDLK_LEFT) pw_press(2);
+                    else if (k == SDLK_c || k == SDLK_KP_3 || k == SDLK_RIGHT) pw_press(3);
+                    else if (k == SDLK_s || k == SDLK_KP_5 || k == SDLK_RETURN || k == SDLK_SPACE) pw_press(0);
+#endif
                 } else if (g_state == S_WHEEL) {
                     if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); bga_unload(&g_ab2); g_state = S_IDLE; }
                     code_key(k);
