@@ -81,3 +81,7 @@ Nada contradiz ate agora [I]: mesmos `.NOT`, mesmo `83.dat`, mesmos nomes de ran
 - `PRESS CENTER STEP` nao aparece na PC (sobra do `00.BGA`): bolhas desativadas no `piu_pc`. [empirico]
 - Fluxo: `81.DAT` -> `82.DAT` (titulo) direto. Modo: `099.DAT` com os discos (`MM_*`) da `99.DAT`. [empirico]
 - Sem SERVICE (F1), TEST (F2), COIN CLEAR (F3), COIN 1/2 (F4/F5): o menu de servico nunca e acessivel; entradas livres, **sempre FREE PLAY**. [empirico] (`svc_apply` fixa `g_freeplay=1`; `-service` ignorado.) Nota: o codigo do menu existe no pumpy.exe (0x40F7E0+), mas nao e alcancavel pelo jogo.
+
+## 9. Efeitos sonoros da PC (`eff\*.wav`, carregados em 0x411A30 via DirectShow) [C]
+Objeto -> arquivo: `0xB66334`=01-1, `0xB66338`=start2 (moeda, 0x404C80), `0xB6633C`=2-1, **`0xB66340`=3-2**, `0xB66344`=4-1, `0xB66350`=7-1, `0xB66354`=8-1, `0xB66358`=5-1, `0xB66374`=10-2, `0xB66384`=start1, `0xB6638C`=start3, `0xB66390..0xB663A0`=A,B,C,D,F.
+Titulo: selecao de canto **e** confirmacao tocam `3-2` (Stop, posicao 0, Run em `0xB66340`); o `piu_pc` usa o indice 3 (`3-2`), nao o `10-2` do Arcade (SFX_MOVE).

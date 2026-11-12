@@ -984,14 +984,14 @@ static void attract_step(void)
             if (ca) {
                 if (!(g_sflag & 1) && g_tsel == 7 && (k1 & 8)) { g_coins -= g_freeplay ? 0 : g_cpc; g_sflag |= 1; g_scnt = 0x3C; sfx_play(SFX_JOIN, 2); k1 &= ~8; }
                 else if (!(g_sflag & 2) && g_tsel == 7 && (k2 & 8)) { g_coins -= g_freeplay ? 0 : g_cpc; g_sflag |= 2; g_scnt = 0x3C; sfx_play(SFX_JOIN, 2); k2 &= ~8; }
-                else if (g_tsel == 1 && ((k1 | k2) & 1)) { g_tfade = 1; g_tfn = 0; }
-                else if (g_tsel == 9 && ((k1 | k2) & 0x10)) { /* cena 0x1C (083.dat, opcoes): nao reproduzida */ }
-                else if (g_tsel == 3 && ((k1 | k2) & 2)) g_quit = 1;
+                else if (g_tsel == 1 && ((k1 | k2) & 1)) { g_tfade = 1; g_tfn = 0; sfx_play(SFX_JOIN, 2); }
+                else if (g_tsel == 9 && ((k1 | k2) & 0x10)) { sfx_play(SFX_JOIN, 2); /* cena 0x1C (083.dat, opcoes): nao reproduzida */ }
+                else if (g_tsel == 3 && ((k1 | k2) & 2)) { sfx_play(SFX_JOIN, 2); g_quit = 1; }
             }
             for (int pl = 0; pl < 2; pl++) {
                 int kk = pl ? k2 : k1, ns = 0;
                 if (kk & 8) ns = 7; if (kk & 0x10) ns = 9; if (kk & 1) ns = 1; if (kk & 2) ns = 3;
-                if (ns && ns != g_tsel) { g_tsel = ns; sfx_play(SFX_MOVE, 4); }
+                if (ns && ns != g_tsel) { g_tsel = ns; sfx_play(SFX_JOIN, 2); }      /* eff-2.wav (obj 0xB66340: Stop/pos 0/Run) em selecao e confirmacao; NAO o 10-2 do Arcade */
             }
             g_tkey[0] = g_tkey[1] = 0;
         }
