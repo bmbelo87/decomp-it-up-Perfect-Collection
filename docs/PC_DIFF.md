@@ -112,3 +112,10 @@ Cena 5 (0x40A210): contador `0x80B754`; 83.BGA no quadro 600+cnt%480; a partir d
 - [C] 0x40CE20 (modo, chamado em 0x40D0EA) e 0x40E7C0 (musica, 0x40EDCB), apenas com dir 0/1: 3 copias do disco/capa com p = cnt%50 (cnt = quadros desde o aperto): (escala 1+p/150, alfa 1-p/30, p<60), (1+p/100, 1-p/20, p<40), (1+p/50, 1-p/10, p<20), tudo x1,1 (glScalef 1,1 anterior a chamada), centradas em (320,333) no modo e (320,325) na musica. Mesma tabela do FUN_2B459 do Arcade.
 - [C] o carrossel da roda de musicas usa y=325 (y para cima) em 0x40E050, nao 333 como o de modos; corrigido (155 de cima).
 - [I] roda de musicas: deslocar e a 1a confirmacao (centro) tambem tocam 3-2 (como na escolha de modo); antes ficavam mudos/10-2.
+
+## 16. Codigos secretos e som dos toques (PC)
+- [C] `0x40BDA0` (chamada por `0x40F4C0` nas fases 2, 6 e 10 da cena 0xB = escolha de modo e roda de musicas): todo toque do pad (bits 1F de P1/P2) toca o **3-2** (obj 0xB66340) e roda o verificador de codigos P1 `0x40B920` / P2 `0x40BB20`. O historico (5 toques em 0xB62260/70; 3 toques em 0xB63A28/38) NAO e limpo ao casar.
+- [C] Tabela de 5 toques (0x42DFF0): DL DR DL DR DL = cancela tudo (mfx &= 0xFFF); UL UL UR UR C = VANISH; UL DL UR DR C = MIRROR; UL DL DR UR C = RANDOM; UL UR C UL UR = NONSTOP; UL UR UL UR C = SYNCHRO (0x1000); UR UL UR UL C = COUPLE (0x2000); DL UL UR DR C = UNION (0x4000); DL C DR C DL = v_rand (0x100). Nao existem os codigos de REMIXDB/REMIXCZ nem 2X/3X/4X em 8 toques do Arcade.
+- [C] Tabela de 3 toques (0x42E020): **Q Q Q** (UL UL UL) cicla a velocidade none>2X>4X>8X>raccel(0x200)>none a cada toque (o historico fica QQQ, entao o 4o Q avanca de novo); **E E E** (UR UR UR) cicla ao contrario (none>raccel>8X... com o encadeamento do original: raccel>4X).
+- [C] Mudou algo -> efeito indice 2 (obj 0xB6633C = "2-1"). Arcade usava idx 1.
+- [C] Setas centrais: Q/E (UL/UR) segurados desenham as camadas 19/20 do 099.BGA (quadro 150+cnt%120); a roda de musicas tem o mesmo guia (0x40E050) que o modo, com a capa em (320,325).

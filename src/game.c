@@ -1340,14 +1340,16 @@ static void pm_carousel(int sh)
     }
     glColor4f(1, 1, 1, 1);
 }
-static void pm_guide(int e)     /* fim de 0x40C6C0 (0x40CA08..0x40CDA2): guia SHIFT LEFT / CONFIRM / SHIFT RIGHT = camadas 27/28/29 (D04/D03/D02.SPR) no quadro 45; 21/22/23 e 150+ = animacoes de pressionar */
+static void pw_center(int d);
+static void pm_guide2(int e, int c, int d, int wheel);
+static void pm_guide(int e) { pm_guide2(e, g_pm_cnt, g_pm_dir, 0); }
+static void pm_guide2(int e, int c, int d, int wheel)     /* (0x40E050 faz o mesmo na roda de musicas, com a capa em (320,325))  fim de 0x40C6C0 (0x40CA08..0x40CDA2): guia SHIFT LEFT / CONFIRM / SHIFT RIGHT = camadas 27/28/29 (D04/D03/D02.SPR) no quadro 45; 21/22/23 e 150+ = animacoes de pressionar */
 {
-    int c = g_pm_cnt, d = g_pm_dir;
     if (d == 0) { bga_draw_n(&g_ab, c < 22 ? 210 + c : 232, 47); bga_draw_n(&g_ab, 150 + c % 120, 23); bga_draw_n(&g_ab, 150 + c % 30, 27); }
     else bga_draw_n(&g_ab, 45, 27);
     if (e == 0) {
         if (d != 0) bga_draw_n(&g_ab, 120, 47);
-        glPushMatrix(); glTranslatef(320, 147, 0); if (d == 0) glScalef(1.1f, 1.1f, 1); glColor4f(1, 1, 1, 1); pm_disc(pm_tex(g_pm_idx)); glPopMatrix();
+        if (wheel) pw_center(d); else { glPushMatrix(); glTranslatef(320, 147, 0); if (d == 0) glScalef(1.1f, 1.1f, 1); glColor4f(1, 1, 1, 1); pm_disc(pm_tex(g_pm_idx)); glPopMatrix(); }
         bga_draw_n(&g_ab, 45, 29); bga_draw_n(&g_ab, 45, 28);
     } else if (e < 0) { bga_draw_n(&g_ab, 150 + c % 120, 22); bga_draw_n(&g_ab, 150 + c % 30, 28); bga_draw_n(&g_ab, 45, 29); }
     else { bga_draw_n(&g_ab, 150 + c % 120, 21); bga_draw_n(&g_ab, 150 + c % 30, 29); bga_draw_n(&g_ab, 45, 28); }
@@ -1387,8 +1389,7 @@ static void pm_enter(void)
 static void pm_press(int d)     /* DAT 0xB62258 (dir): 0 centro/confirma, 2 shift esq (bit 1), 3 shift dir (bit 2); so apos 3 quadros da fase (0x40D108) */
 {
     if (g_pm_ph != 2 || g_pm_cnt <= 3) return;
-    g_pm_prev = g_pm_dir; g_pm_dir = d; g_pm_cnt = 0;
-    if (g_pm_prev != 0 || d != 0) sfx_play(SFX_JOIN, 2);      /* empirico: deslocar e a 1a confirmacao = 3-2 (eff-2.wav); a 2a confirmacao (4-1) toca em pm_step */
+    g_pm_prev = g_pm_dir; g_pm_dir = d; g_pm_cnt = 0;      /* o 3-2 de todo toque do pad toca em pc_pad_snd */
 }
 static void pm_step(void)
 {
@@ -1592,6 +1593,49 @@ static void wheel_list(void)                                 /* FUN_2B70B: copia
  *   C DL C DR C DL C DR     (func_2a8c4) e fase 6 (roda) -> REMIXCZ (flag 0x800, secao 6) */
 static uint8_t g_hist[2][8];
 static void wheel_enter(void);
+#ifdef PIU_BUILD_PC
+/* Codigos da build PC (pumpy.exe 0x40B920 P1 / 0x40BB20 P2, chamados por 0x40BDA0 a cada toque do pad nas fases 2/6/10 da cena 0xB). [C] lido no assembly.
+ * Historico de 5 toques (0xB62260 / 0xB62270) contra a tabela 0x42DFF0 (5 bytes), e de 3 toques (0xB63A28 / 0xB63A38) contra 0x42E020. O historico NAO e limpo ao casar:
+ * repetir o toque final de Q Q Q avanca de novo. Pad: DL=1 DR=2 C=4 UL=8 UR=0x10. Som ao mudar algo: efeito indice 2 (obj 0xB6633C = 2-1). */
+static uint8_t g_h5[2][5], g_h3[2][3];
+static void code_press(int pl, int bit)
+{
+    static const uint8_t T5[9][5] = { {1,2,1,2,1}, {8,8,0x10,0x10,4}, {8,1,0x10,2,4}, {8,1,2,0x10,4}, {8,0x10,4,8,0x10},
+        {8,0x10,8,0x10,4}, {0x10,8,0x10,8,4}, {1,8,0x10,2,4}, {1,4,2,4,1} };
+    uint8_t *h = g_h5[pl], *h3 = g_h3[pl];
+    memmove(h, h + 1, 4); h[4] = (uint8_t)bit; memmove(h3, h3 + 1, 2); h3[2] = (uint8_t)bit;
+    int m0 = g_mod[pl], f0 = g_mfx, *m = &g_mod[pl], k;
+    for (k = 0; k < 9; k++) if (!memcmp(h, T5[k], 5)) break;
+    switch (k) {
+    case 0: g_mfx &= 0xfff; *m = 0; break;                                    /* DL DR DL DR DL: cancela tudo */
+    case 1: *m ^= 0x10; *m &= ~0x100; break;                                  /* UL UL UR UR C: VANISH */
+    case 2: *m ^= 0x20; break;                                                /* UL DL UR DR C: MIRROR */
+    case 3: *m ^= 0x40; *m &= ~0x100; break;                                  /* UL DL DR UR C: RANDOM */
+    case 4: *m ^= 0x80; break;                                                /* UL UR C UL UR: NONSTOP */
+    case 5: g_mfx ^= 0x1000; g_mfx &= ~0x2000; break;                         /* UL UR UL UR C: SYNCHRO */
+    case 6: g_mfx &= ~0x1000; g_mfx ^= 0x2000; break;                         /* UR UL UR UL C: COUPLE */
+    case 7: g_mfx ^= 0x4000; break;                                           /* DL UL UR DR C: UNION */
+    case 8: *m &= ~0x50; *m ^= 0x100; break;                                  /* DL C DR C DL: v_rand */
+    }
+    static const uint8_t T3[2][3] = { {8,8,8}, {0x10,0x10,0x10} };            /* Q Q Q: velocidade sobe 2x>4x>8x>raccel>nada; E E E: desce */
+    for (int t = 0; t < 2; t++) if (!memcmp(h3, T3[t], 3)) {
+        int v = *m;
+        if (t == 0) {
+            if (v & 0x200) v &= ~0x20e;
+            else if (v & 8) { v &= ~0x20e; v ^= 0x200; } else if (v & 4) { v &= ~0x20e; v ^= 8; }
+            else if (v & 2) { v &= ~0x20e; v ^= 4; } else { v &= ~0x20e; v ^= 2; }
+        } else {
+            if (v & 0x200) { v &= ~0x20e; v ^= 8; }                           /* (cai em seguida no teste de 8: o original encadeia, 0x200 -> 4x) */
+            if (v & 8) { v &= ~0x20e; v ^= 4; }
+            else if (v & 4) { v &= ~0x20e; v ^= 2; }
+            else if (v & 2) { v &= ~0x20e; }
+            else { v &= ~0x20e; v ^= 0x200; }
+        }
+        *m = v;
+    }
+    if (*m != m0 || g_mfx != f0) sfx_play(2, 5);
+}
+#else
 static void code_press(int pl, int bit)                          /* FUN_2A72B (P1) / FUN_2A973 (P2): tabela 0x81219AA, 16 x 8 teclas */
 {
     static const uint8_t T[16][8] = {                            /* DL=1 DR=2 C=4 UL=8 UR=0x10 */
@@ -1626,6 +1670,7 @@ static void code_press(int pl, int bit)                          /* FUN_2A72B (P
     memset(h, 0, 8);                                                                   /* FUN_2A6C9 */
     if (*m != m0 || g_mfx != f0) sfx_play(1, 2);                                       /* 0x2A91B: ac_sound_play_effect(0,2,1) -> idx 1 canal 2 (inferido) */
 }
+#endif
 static void code_key(int k)                                      /* teclas do pad -> bits; letras = P1, teclado numerico = P2 */
 {
     int pl = (k >= SDLK_KP_1 && k <= SDLK_KP_9) ? 1 : 0, b = 0;
@@ -1720,6 +1765,10 @@ static void pw_cover(int id)
         return;
     }
 }
+static void pw_center(int d)
+{
+    glPushMatrix(); glTranslatef(320, 155, 0); if (d == 0) glScalef(1.1f, 1.1f, 1); glColor4f(1, 1, 1, 1); pw_cover(g_songs[w_song(0)].id); glPopMatrix();
+}
 static void pw_begin(void)
 {
     bga_unload(&g_ab); bga_unload(&g_ab2); bga_load_name(&g_ab, "099");
@@ -1730,7 +1779,6 @@ static void pw_press(int d)
 {
     if (g_pw_ph != 10 || g_pw_cnt <= 3) return;
     g_pw_prev = g_pw_dir; g_pw_dir = d; g_pw_cnt = 0;
-    if (g_pw_prev != 0 || d != 0) sfx_play(SFX_JOIN, 2);      /* igual a escolha de modo: deslocar e 1a confirmacao = 3-2; a 2a (4-1) em wheel_commit */
 }
 static void wheel_commit(void);
 static void pw_step(void)
@@ -1795,7 +1843,7 @@ static void pw_draw(void)
     }
     bga_draw_n(&g_ab, 45, 27); bga_draw_n(&g_ab, 45, 28); bga_draw_n(&g_ab, 45, 29);      /* textos do guia SHIFT LEFT / CONFIRM / SHIFT RIGHT (D04/D03/D02.SPR), como na escolha de modo [I: nao ha chamada propria em 0x40EC50] */
     int sh = 0; if (g_pw_dir == 2 && g_pw_cnt < 20) sh = g_pw_cnt; else if (g_pw_dir == 3 && g_pw_cnt < 20) sh = -g_pw_cnt;
-    pw_carousel(sh);
+    pw_carousel(sh); pm_guide2(sh > 0 ? 1 : sh < 0 ? -1 : 0, g_pw_cnt, g_pw_dir, 1);
     if (g_pw_dir == 0 || g_pw_dir == 1) pw_pulse(g_pw_dir, g_pw_cnt);
     if (!sh) pw_level(g_sec[g_w_sec][g_w_list[w_idx(0)]].lv);
     orig_time(&g_ab, 30 - g_pw_t0 / 60);
@@ -1809,6 +1857,14 @@ static void pw_draw(void)
     {   const SprTile *tl = g_freeplay ? sp2_find_x(g_sp542, "freeply") : NULL;
         if (tl) { glPushMatrix(); glTranslatef(0, 480, 0); glScalef(1, -1, 1); glColor4f(1, 1, 1, 1); glPushMatrix(); glTranslatef(320, 13, 0); tile_up(&g_arrow, tl, 0, 0); glPopMatrix(); glPopMatrix(); }
     }
+}
+#endif
+#ifdef PIU_BUILD_PC
+static void pc_pad_snd(int k)      /* 0x40BEEB..0x40BF5x: qualquer toque do pad (bits 1F de P1/P2) nas fases 2 e 10 toca o 3-2 (obj 0xB66340), alem do deslocamento */
+{
+    if (!((g_state == S_MODE && g_pm_ph == 2) || (g_state == S_WHEEL && g_pw_ph == 10))) return;
+    if (k == SDLK_z || k == SDLK_c || k == SDLK_s || k == SDLK_q || k == SDLK_e || (k >= SDLK_KP_1 && k <= SDLK_KP_9 && (k == SDLK_KP_1 || k == SDLK_KP_3 || k == SDLK_KP_5 || k == SDLK_KP_7 || k == SDLK_KP_9))
+        || k == SDLK_LEFT || k == SDLK_RIGHT || k == SDLK_RETURN || k == SDLK_SPACE) sfx_play(SFX_JOIN, 2);
 }
 #endif
 static void wheel_commit(void)      /* fim da escolha (centro confirmado ou tempo esgotado): FUN_2CDE3/2CDFA - esconde a musica, escolhe o passo pelas flags e vai para LOAD */
@@ -2057,6 +2113,7 @@ int main(int argc, char **argv)
                     if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); g_state = S_IDLE; }
 #ifdef PIU_BUILD_PC
                 } else if (g_state == S_WHEEL) {      /* PC: bit 1 = shift esq, bit 2 = shift dir, centro = confirma (como na escolha de modo) */
+                    pc_pad_snd(k); code_key(k);
                     if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); bga_unload(&g_ab2); g_state = S_IDLE; }
                     else if (k == SDLK_z || k == SDLK_KP_1 || k == SDLK_LEFT) pw_press(2);
                     else if (k == SDLK_c || k == SDLK_KP_3 || k == SDLK_RIGHT) pw_press(3);
@@ -2074,6 +2131,9 @@ int main(int argc, char **argv)
                     }
                     else if (k == SDLK_RETURN || k == SDLK_SPACE) mode_confirm();
                 } else if (g_state == S_MODE) {
+#ifdef PIU_BUILD_PC
+                    pc_pad_snd(k);
+#endif
                     code_key(k);
                     if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); g_state = S_IDLE; }
                     /* PIU.EXE FUN_2BD93: bits 1/2 rolam a lista (dir 2/3), bits 8/0x10 apontam cur+0/cur+1 (dir 0/1; repetir entra); centro nao e lido.
