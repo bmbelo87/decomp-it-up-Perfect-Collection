@@ -1293,7 +1293,7 @@ static int mode_to_sel(int dir)    /* 0x2C328 / 0x2C3DA: item (dir + cur) -> DAT
  * y (original, y para cima) = 333 -> 147 de cima; alfa = 1 - |p|*0.25, escala = 1 - |p|*0.1 com p = pos + 0.05*s; ordem 4,3,2,1 e depois -4..0; s = +-contador (20 quadros) apos pressionar baixo-esq/baixo-dir.
  * [I] sons: shift = eff\10-2 (obj 0xB66374), confirma = eff\4-1 (0xB66344); mapa lista->modo como no Arcade (ids 1 EASY, 2 HARD, 4/5 DOUBLE/BATTLE, 3 REMIX, 6 CRAZY). */
 static void orig_time(BgaRun *b, int n);
-static ResSet g_r99; static int g_r99_ok, g_pm_ph, g_pm_cnt, g_pm_cnt2, g_pm_dir = -1, g_pm_prev = -2, g_pm_idx, g_pm_t0;
+static ResSet g_r99; static int g_r99_ok, g_pm_ph, g_pm_cnt, g_pm_cnt2, g_pm_dir = -1, g_pm_prev = -2, g_pm_idx, g_pm_t0, g_pm_idx0;      /* g_pm_idx0: so teste (-pmidx N) */
 static const char *const PM_TEX[6] = { "MM_EZ", "MM_HD", "MM_DB", "MM_NR", "MM_CZ", "MM_BTL" };
 static int pm_tex(int i)         /* 0x40C670: indice da lista (mod 5); com 2 jogadores o item 2 (DOUBLE) vira BATTLE (5) */
 {
@@ -1361,7 +1361,7 @@ static void pm_enter(void)
 {
     bga_unload(&g_ab); bga_load_name(&g_ab, "099");
     if (!g_r99_ok) { char p[300]; path_of(p, sizeof p, "BGA/99.DAT"); g_r99_ok = rs_open(&g_r99, p) == 0; }
-    g_pm_ph = 1; g_pm_cnt = g_pm_cnt2 = 0; g_pm_dir = -1; g_pm_prev = -2; g_pm_idx = 0; g_pm_t0 = 0; g_m_sel = 1; g_state = S_MODE;
+    g_pm_ph = 1; g_pm_cnt = g_pm_cnt2 = 0; g_pm_dir = -1; g_pm_prev = -2; g_pm_idx = g_pm_idx0; g_pm_t0 = 0; g_m_sel = 1; g_state = S_MODE;
 }
 static void pm_press(int d)     /* DAT 0xB62258 (dir): 0 centro/confirma, 2 shift esq (bit 1), 3 shift dir (bit 2); so apos 3 quadros da fase (0x40D108) */
 {
@@ -1395,7 +1395,9 @@ static void pm_draw(void)
 {
     int remain = 30 - g_pm_t0 / 60;
     glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT);
-    static const int HL[7] = { 0, 5, 4, 2, 3, 1, 6 };       /* modo -> camada de barra (0x40D004..: 5/4/2/3/1/6) */
+    /* modo (id 1 EASY/NORMAL, 2 HARD, 3 NONSTOP REMIX, 4 DOUBLE, 5 BATTLE, 6 CRAZY) -> camada de fundo animada do 099.BGA (quadro 630..660):
+     * NB=6 (vermelho), HB=5 (laranja), NSB=3 (azul), DB=4 (verde), BB=2, CB=1 (rosa). Confirmado pelo usuario (cores) e pelos nomes dos .SPR. */
+    static const int HL[7] = { 0, 6, 5, 3, 4, 2, 1 };
     if (g_pm_ph == 1) {
         bga_draw_n(&g_ab, 630 + g_pm_cnt2 % 30, 6);
         bga_draw(&g_ab, 120 + (g_pm_cnt / 2 > 30 ? 30 : g_pm_cnt / 2));
@@ -1826,6 +1828,9 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "-wdir") && i + 1 < argc) wheel_dir = atoi(argv[++i]);
         else if (!strcmp(argv[i], "-service") && i + 1 < argc) svc_start = atoi(argv[++i]) + 1;
         else if (!strcmp(argv[i], "-view") && i + 1 < argc) viewname = argv[++i];
+#ifdef PIU_BUILD_PC
+        else if (!strcmp(argv[i], "-pmidx") && i + 1 < argc) g_pm_idx0 = atoi(argv[++i]) % 5;      /* teste: disco inicial 0..4 (NORMAL HARD DOUBLE NONSTOP CRAZY) */
+#endif
         else if (!strcmp(argv[i], "-title")) title_start = 1;          /* teste: abre direto o titulo */
         else if (!strcmp(argv[i], "-frame") && i + 1 < argc) g_bgaf = atoi(argv[++i]);
         else if (!strcmp(argv[i], "-aoff") && i + 1 < argc) g_aoff_ms = atof(argv[++i]);
