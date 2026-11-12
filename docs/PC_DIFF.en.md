@@ -136,3 +136,6 @@ PC title: UR selects OPTIONS and UR again opens scene 0x1C (`piu_pc`: state `S_O
 ## 20. Codes: one buffer per screen
 
 **Empirical (user):** the tap history is separate per screen (mode / music), cleared on entering each, and only counts while the screen is active (phases 2 and 10, never during the entry animation). Before, UL UL on the title + UL in mode completed QQQ.
+
+
+**Transition (user request):** the title fades out (30 frames) when opening options and the options fade in; EXIT just returns to the title, no effect.

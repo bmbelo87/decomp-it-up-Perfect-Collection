@@ -136,3 +136,6 @@ Título da PC: UR seleciona OPTIONS e UR de novo abre a cena 0x1C (`piu_pc`: est
 ## 20. Códigos: um buffer por tela
 
 **Empírico (usuário):** o histórico de toques é separado por tela (modo / músicas), limpo ao entrar em cada uma, e só conta com a tela ativa (fases 2 e 10, nunca na animação de entrada). Antes UL UL no título + UL no modo fechavam QQQ.
+
+
+**Transição (pedido do usuário):** o título esmaece (30 quadros) ao abrir as opções e as opções entram esmaecendo; o EXIT só volta ao título, sem efeito.

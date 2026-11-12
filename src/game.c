@@ -959,13 +959,14 @@ static void goto_idle(void) { music_stop(); bga_unload(&g_ab); g_state = S_IDLE;
  *    sel==3 + bit 2 = WM_CLOSE (sair). Sem 82.BGA: 00.BGA da PC = bolhas PRESS CENTER STEP / PLEASE INSERT COIN (0x404A0E: +0 P1, +30 P2 com credito; +60/+90 sem).
  *  [INFERIDO] qual canto cada bit fisico do pad PC representa (piukey.cfg ainda nao decifrado); as cenas 0x1C e 0x26 ainda nao sao reproduzidas. */
 static void opt_enter(void);
+static int g_ofade;      /* PC: esmaecimento do titulo (1..30) antes de abrir as opcoes */
 static BgaRun g_b00; static int g_tsel, g_tfade, g_tfn, g_tkey[2], g_ovc, g_quit;
 static void enter_title(void)
 {
     music_stop();
     bga_unload(&g_ab); bga_load_name(&g_ab, "82");
     if (!g_b00.ok) bga_load_name(&g_b00, "00");
-    g_cnt = 0; g_scnt = 0; g_sflag = 0; g_stage = 0; g_tsel = 0; g_tfade = 0; g_tfn = 0; g_ovc = 0; mods_clear(); g_state = S_TITLE;
+    g_cnt = 0; g_scnt = 0; g_sflag = 0; g_stage = 0; g_tsel = 0; g_tfade = 0; g_tfn = 0; g_ovc = 0; g_ofade = 0; mods_clear(); g_state = S_TITLE;
 }
 #else
 static void enter_title(void)                                                      /* 0x284E0 */
@@ -1005,6 +1006,7 @@ static void attract_step(void)
     case S_TITLE:
 #ifdef PIU_BUILD_PC
         /* 0x403E20 */
+        if (g_ofade) { g_tkey[0] = g_tkey[1] = 0; if (++g_ofade > 30) { g_ofade = 0; opt_enter(); } break; }      /* esmaece o titulo e abre as opcoes */
         if (g_sflag & 3) g_scnt++;
         if (g_tfade) { if (++g_tfn == 30) { g_tfn = 0; if (--g_tfade == 0) { goto_idle(); break; } } }   /* fade de saida (0x26: ainda nao reproduzida -> volta ao attract) */
         if (g_scnt > 0x3C || (g_sflag & 3) == 3) { enter_select(); break; }
@@ -1018,7 +1020,7 @@ static void attract_step(void)
                 if (!(g_sflag & 1) && g_tsel == 7 && (k1 & 8)) { g_coins -= g_freeplay ? 0 : g_cpc; g_sflag |= 1; g_scnt = 0x3C; sfx_play(SFX_JOIN, 2); k1 &= ~8; }
                 else if (!(g_sflag & 2) && g_tsel == 7 && (k2 & 8)) { g_coins -= g_freeplay ? 0 : g_cpc; g_sflag |= 2; g_scnt = 0x3C; sfx_play(SFX_JOIN, 2); k2 &= ~8; }
                 else if (g_tsel == 1 && ((k1 | k2) & 1)) { g_tfade = 1; g_tfn = 0; sfx_play(SFX_JOIN, 2); }
-                else if (g_tsel == 9 && ((k1 | k2) & 0x10)) { sfx_play(SFX_JOIN, 2); g_tkey[0] = g_tkey[1] = 0; opt_enter(); break; }      /* cena 0x1C: OPCOES (083.dat) */
+                else if (g_tsel == 9 && ((k1 | k2) & 0x10)) { sfx_play(SFX_JOIN, 2); g_tkey[0] = g_tkey[1] = 0; g_ofade = 1; break; }      /* cena 0x1C: OPCOES (083.dat) */
                 else if (g_tsel == 3 && ((k1 | k2) & 2)) { sfx_play(SFX_JOIN, 2); g_quit = 1; }
             }
             for (int pl = 0; pl < 2; pl++) {
@@ -1317,6 +1319,7 @@ static int mode_to_sel(int dir)    /* 0x2C328 / 0x2C3DA: item (dir + cur) -> DAT
  * 5 itens (DL/DR movem, centro aplica): 0 dificuldade (3 niveis), 1 STAGE BREAK (liga/desliga), 2 SHOW HELP, 3 padrao (diff 1, stage break ON, help OFF), 4 sair.
  * Entrada: 30 quadros animando 083.BGA do quadro 0; depois quadro 60 + camadas de destaque (quadro 90 + cnt%45 no item ativo, 30 nos demais).
  * Ligacao com os dados do jogo [I]: dificuldade = g_cfg.level, STAGE BREAK = g_cfg.stage (0 = OFF, ligar = 2), SHOW HELP = g_cfg.help (os mesmos do menu de servico). */
+static void quad_fill(float x, float y, float w, float h);
 static int g_o_sel, g_o_cnt, g_o_ph;
 static void opt_enter(void)
 {
@@ -1355,7 +1358,7 @@ static void draw_option(void)
 {
     glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT);
     if (!g_ab.ok) return;
-    if (g_o_ph == 0) { bga_draw(&g_ab, g_o_cnt); return; }
+    if (g_o_ph == 0) { bga_draw(&g_ab, g_o_cnt); glColor4f(0, 0, 0, 1.f - (float)g_o_cnt / 30.f); quad_fill(0, 0, 640, 480); glColor4f(1, 1, 1, 1); return; }      /* entra esmaecendo */
     int sel = g_o_sel, cnt = g_o_cnt, an = cnt % 45 + 90;
     bga_draw(&g_ab, 60);
     static const int L[5][3] = { { 3, 4, 33 }, { 7, 8, 30 }, { 11, 12, 26 }, { 15, 16, -1 }, { 19, 20, -1 } };
@@ -2054,6 +2057,7 @@ static void draw_attract(void)
         if (g_tsel) bga_draw(&g_ab, 900 + c120);
         bga_draw(&g_ab, BASE[g_tsel] + c120);
         if (g_tfade) { glColor4f(0, 0, 0, (float)(g_tfn) / 30.f); quad_fill(0, 0, 640, 480); glColor4f(1, 1, 1, 1); }
+        if (g_ofade) { glColor4f(0, 0, 0, (float)g_ofade / 30.f); quad_fill(0, 0, 640, 480); glColor4f(1, 1, 1, 1); }
     } else
 #endif
     if (g_ab.ok) bga_draw(&g_ab, g_bgaf);
