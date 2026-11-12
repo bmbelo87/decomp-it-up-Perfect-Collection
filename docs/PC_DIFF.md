@@ -103,3 +103,7 @@ Mesmo esqueleto da escolha de modo: fundo = camada de cor do modo (6 NB, 5 HB, 4
 
 ## 13. DANCE GRADE da PC - esmaece [C 0x40A210]
 Cena 5 (0x40A210): contador `0x80B754`; 83.BGA no quadro 600+cnt%480; a partir de 381 quadros o alfa global (0x42D034, via 0x4012F0(1.0, (400-cnt)*0.05)) cai a 0 e a **tela inteira** esmaece (no Arcade so os numeros); em cnt>400 (ou >250 com centro P1/P2) sai e vem a tela `TITLE\LOAD1..4.PNZ` (LOADn = estagios jogados; LOAD1 vira LOAD4 apos 27/12/2000, 0x40EA30/0x40F7D0). `piu_pc` usa o fator `g_afade` em `bga_draw_n`.
+
+## 14. Escolha de modo: sons e animacao pre-confirmacao (correcao)
+- [empirico] deslocar (baixo-esq/baixo-dir) e a 1a confirmacao (centro) tocam **3-2** (eff-2.wav, canal 2); a 2a confirmacao (entra no modo) toca **4-1**. Antes o deslocamento usava o 10-2 do Arcade (baixo demais).
+- [C] 0x40CDA2: pad cima-esq/cima-dir (bits 8/0x10, qualquer jogador) segurado desenha as camadas 19/20 do 099.BGA no quadro 150+cnt%120 (feedback de pressionar). O resto da animacao do centro (camadas 47/23/27, disco x1,1) ja existia em `pm_guide`.

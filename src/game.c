@@ -1351,6 +1351,11 @@ static void pm_guide(int e)     /* fim de 0x40C6C0 (0x40CA08..0x40CDA2): guia SH
         bga_draw_n(&g_ab, 45, 29); bga_draw_n(&g_ab, 45, 28);
     } else if (e < 0) { bga_draw_n(&g_ab, 150 + c % 120, 22); bga_draw_n(&g_ab, 150 + c % 30, 28); bga_draw_n(&g_ab, 45, 29); }
     else { bga_draw_n(&g_ab, 150 + c % 120, 21); bga_draw_n(&g_ab, 150 + c % 30, 29); bga_draw_n(&g_ab, 45, 28); }
+    {   /* 0x40CDA2: pad cima-esq (bit 8) / cima-dir (bit 0x10) de qualquer jogador segurado = camadas 19 / 20 no quadro 150 + cnt%120 */
+        const Uint8 *ks = SDL_GetKeyboardState(NULL);
+        if (ks[SDL_SCANCODE_Q] || ks[SDL_SCANCODE_KP_7]) bga_draw_n(&g_ab, 150 + c % 120, 19);
+        if (ks[SDL_SCANCODE_E] || ks[SDL_SCANCODE_KP_9]) bga_draw_n(&g_ab, 150 + c % 120, 20);
+    }
 }
 static void pm_bubbles(void)    /* 0x40C3D0 (dir==-1) e 0x40C4AA (apos apontar): camada, quadro-base; quadro = cnt%90 + base */
 {
@@ -1372,7 +1377,8 @@ static void pm_enter(void)
 static void pm_press(int d)     /* DAT 0xB62258 (dir): 0 centro/confirma, 2 shift esq (bit 1), 3 shift dir (bit 2); so apos 3 quadros da fase (0x40D108) */
 {
     if (g_pm_ph != 2 || g_pm_cnt <= 3) return;
-    g_pm_prev = g_pm_dir; g_pm_dir = d; g_pm_cnt = 0; if (d >= 2) sfx_play(SFX_MOVE, 4);
+    g_pm_prev = g_pm_dir; g_pm_dir = d; g_pm_cnt = 0;
+    if (g_pm_prev != 0 || d != 0) sfx_play(SFX_JOIN, 2);      /* empirico: deslocar e a 1a confirmacao = 3-2 (eff-2.wav); a 2a confirmacao (4-1) toca em pm_step */
 }
 static void pm_step(void)
 {
