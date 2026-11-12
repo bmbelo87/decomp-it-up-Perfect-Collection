@@ -498,3 +498,8 @@ Tabela completa em `docs/PC_DIFF.md` (gerada com `tools/map_pc_dos.py` e `tools/
 ## Atualização 50 — Som ao confirmar um código secreto (Arcade)
 
 **Empírico (usuário):** ao confirmar um código no Arcade toca `2-1.WAV` (índice 2), não `01-11` (índice 1, inferido antes de `0x2A91B`). `code_press` agora usa `sfx_play(2, 5)`, igual à PC.
+
+
+## Atualização 51 — 5-1.WAV junto com a voz da nota (Dance Grade)
+
+**Empírico (usuário):** ao exibir a nota no Dance Grade toca `5-1.WAV` (idx 5, canal 3) junto com o WAV da nota (RANK_x / A..F). Vale para Arcade e PC (código compartilhado em `PH_RESULT`, `c == 80`).
