@@ -493,3 +493,8 @@ Cause of the bug (reported in play: "Extravaganza 3rd" without a DISC): `CD_TBL`
 ## Update 49 — PC x Arcade difference map and PC build data loading
 
 Full table in `docs/PC_DIFF.en.md` (generated with `tools/map_pc_dos.py` and `tools/cmp_bga.py`). **Confirmed:** `pumpy.exe` is the same arcade code ported to Win32/OpenGL; PC and DOS functions match by order and by strings (PC `0x403BEF/0x403CB0/0x403DA0` = DOS `0x28469/0x285D4/0x284E0`; PC service `0x40F7E0…` = DOS `0x2E4FF…`). **New on PC:** pad check, `gwiopm` driver, MP3 via DirectShow, `eff\*.wav` via DirectSound, `piukey.cfg`, `c:\pump.ini`, `083.dat`/`083.mp3`. Implemented: `piu_res_load` reads RES v3; `piu_pc` uses `Eff/` and resolves paths case-insensitively on Linux/macOS.
+
+
+## Update 50 — Sound on confirming a secret code (Arcade)
+
+**Empirical (user):** confirming a code on the Arcade plays `2-1.WAV` (index 2), not `01-11` (index 1, previously inferred from `0x2A91B`). `code_press` now uses `sfx_play(2, 5)`, same as the PC.

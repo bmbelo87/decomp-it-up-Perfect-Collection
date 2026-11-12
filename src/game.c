@@ -1673,7 +1673,7 @@ static void code_press(int pl, int bit)                          /* FUN_2A72B (P
         break;
     }
     memset(h, 0, 8);                                                                   /* FUN_2A6C9 */
-    if (*m != m0 || g_mfx != f0) sfx_play(1, 2);                                       /* 0x2A91B: ac_sound_play_effect(0,2,1) -> idx 1 canal 2 (inferido) */
+    if (*m != m0 || g_mfx != f0) sfx_play(2, 5);                                       /* codigo confirmado: 2-1.WAV (idx 2) [empirico, usuario]; antes idx 1 (01-11), inferido do 0x2A91B */
 }
 #endif
 static void code_key(int k)                                      /* teclas do pad -> bits; letras = P1, teclado numerico = P2 */
