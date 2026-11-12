@@ -1401,6 +1401,10 @@ static void pm_draw(void)
     pm_bubbles();
     int sh = 0; if (g_pm_dir == 2 && g_pm_cnt < 20) sh = g_pm_cnt; else if (g_pm_dir == 3 && g_pm_cnt < 20) sh = -g_pm_cnt;
     pm_carousel(sh); pm_guide(sh > 0 ? 1 : sh < 0 ? -1 : 0);
+    {   /* 0x406460/0x404830 (todo quadro da fase 2): creditos/FREE PLAY na mesma posicao do Arcade; so o titulo fica sem o sprite (usuario) */
+        const SprTile *tl = g_freeplay ? sp2_find_x(g_sp542, "freeply") : NULL;
+        if (tl) { glPushMatrix(); glTranslatef(0, 480, 0); glScalef(1, -1, 1); glColor4f(1, 1, 1, 1); glPushMatrix(); glTranslatef(320, 13, 0); tile_up(&g_arrow, tl, 0, 0); glPopMatrix(); glPopMatrix(); }
+    }
 }
 #endif
 static void mode_step(void)
