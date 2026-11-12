@@ -1,3 +1,5 @@
+**Idiomas:** **Português (BR)** · [English](FUNCTION_MAP.en.md) · [Español](FUNCTION_MAP.es.md)
+
 # PIU.EXE (DOS, build "Dec 18 2000") — mapa de símbolos
 
 Endereços = VAs do LE original (também os do `piu_le.exe` aberto no REA).
