@@ -1729,7 +1729,8 @@ static void pw_begin(void)
 static void pw_press(int d)
 {
     if (g_pw_ph != 10 || g_pw_cnt <= 3) return;
-    g_pw_prev = g_pw_dir; g_pw_dir = d; g_pw_cnt = 0; if (d >= 2) sfx_play(SFX_MOVE, 4);
+    g_pw_prev = g_pw_dir; g_pw_dir = d; g_pw_cnt = 0;
+    if (g_pw_prev != 0 || d != 0) sfx_play(SFX_JOIN, 2);      /* igual a escolha de modo: deslocar e 1a confirmacao = 3-2; a 2a (4-1) em wheel_commit */
 }
 static void wheel_commit(void);
 static void pw_step(void)

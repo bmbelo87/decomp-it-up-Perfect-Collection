@@ -111,3 +111,4 @@ Cena 5 (0x40A210): contador `0x80B754`; 83.BGA no quadro 600+cnt%480; a partir d
 ## 15. Pulso do disco/capa apontado (centro 1x)
 - [C] 0x40CE20 (modo, chamado em 0x40D0EA) e 0x40E7C0 (musica, 0x40EDCB), apenas com dir 0/1: 3 copias do disco/capa com p = cnt%50 (cnt = quadros desde o aperto): (escala 1+p/150, alfa 1-p/30, p<60), (1+p/100, 1-p/20, p<40), (1+p/50, 1-p/10, p<20), tudo x1,1 (glScalef 1,1 anterior a chamada), centradas em (320,333) no modo e (320,325) na musica. Mesma tabela do FUN_2B459 do Arcade.
 - [C] o carrossel da roda de musicas usa y=325 (y para cima) em 0x40E050, nao 333 como o de modos; corrigido (155 de cima).
+- [I] roda de musicas: deslocar e a 1a confirmacao (centro) tambem tocam 3-2 (como na escolha de modo); antes ficavam mudos/10-2.
