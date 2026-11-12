@@ -1668,7 +1668,13 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "-shot") && i + 1 < argc) shotpath = argv[++i];
     }
     { char t[320]; snprintf(t, sizeof t, "%s/STAGE.CFG", g_dir); FILE *f = fopen(t, "rb");
-      if (f) fclose(f); else { char *bp = SDL_GetBasePath(); if (bp) { snprintf(g_dir, sizeof g_dir, "%s" PIU_DEF_DIR, bp); SDL_free(bp); } } }
+      if (f) fclose(f); else { char *bp = SDL_GetBasePath(); if (bp) {
+#ifdef PIU_BUILD_PC
+          /* build PC: o exe pode ficar na propria pasta do jogo (ao lado de Stage.cfg, Bga/, Audio/...), como o pumpy.exe */
+          char t2[320]; FILE *f2; snprintf(t2, sizeof t2, "%sStage.cfg", bp); f2 = fopen(t2, "rb"); if (!f2) { snprintf(t2, sizeof t2, "%sSTAGE.CFG", bp); f2 = fopen(t2, "rb"); }
+          if (f2) { fclose(f2); snprintf(g_dir, sizeof g_dir, "%s", bp); size_t l = strlen(g_dir); while (l && (g_dir[l - 1] == '/' || g_dir[l - 1] == 92)) g_dir[--l] = 0; } else
+#endif
+          snprintf(g_dir, sizeof g_dir, "%s" PIU_DEF_DIR, bp); SDL_free(bp); } } }
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS) < 0) { logf_("SDL: %s\n", SDL_GetError()); return 1; }
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     g_win = SDL_CreateWindow(PIU_TITLE, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, g_winw, g_winh, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
