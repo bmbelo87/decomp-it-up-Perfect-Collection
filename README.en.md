@@ -12,6 +12,8 @@ How to play: double-click `jogar.bat` (uses the `..\game` folder). Or: `PiuRecon
 Binaries for **Windows (x64)**, **Linux (x64)** and **macOS** are built by GitHub Actions on every `v*` tag (*Releases* tab). The original game data (`PIU.EXE`, `BGA/`, `STEP/`, `AUDIO/`...) is **not** included: point to your own folder with `-game <folder>` (default: `../game`).
 - Linux: needs `libsdl2-2.0-0` (and an OpenGL driver). macOS: `brew install sdl2`.
 
+Each tag publishes **two editions** per platform: `PerfectCollectionArcade-<platform>` (`piu`, recompilation of the 18/12/2000 `PIU.EXE`; Arcade data via `-game <folder>`) and `PerfectCollectionPC-<platform>` (`piu_pc`, recreation of the 16/04/2001 `pumpy.exe`; put the exe in the PC game folder next to `Stage.cfg`, or use `jogar_pc.bat`).
+
 ## Controls
 | | |
 |---|---|

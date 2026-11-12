@@ -39,14 +39,22 @@ jobs:
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release
-      - name: Empacotar
+      - name: Empacotar (duas edicoes: Arcade e PC)
         shell: bash
         run: |
-          mkdir -p pkg
-          if [ "${{ runner.os }}" = "Windows" ]; then cp build/Release/piu.exe pkg/piu.exe; cp build/Release/piu_pc.exe pkg/piu_pc.exe; cp jogar.bat pkg/; else cp build/piu pkg/piu; cp build/piu_pc pkg/piu_pc; fi
-          cp README.md LogoIA.png icon.png pkg/
-          cd pkg
-          if [ "${{ runner.os }}" = "Windows" ]; then 7z a ../PiuReconstructed-${{ matrix.name }}.zip . ; else tar czf ../PiuReconstructed-${{ matrix.name }}.tar.gz . ; fi
+          mkdir -p pkgA pkgP
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cp build/Release/piu.exe pkgA/piu.exe; cp jogar.bat pkgA/
+            cp build/Release/piu_pc.exe pkgP/piu_pc.exe; cp jogar_pc.bat pkgP/
+          else
+            cp build/piu pkgA/piu; cp build/piu_pc pkgP/piu_pc
+          fi
+          for d in pkgA pkgP; do cp README.md README.en.md README.es.md LogoIA.png icon.png $d/; done
+          for e in A P; do
+            if [ "$e" = "A" ]; then n=PerfectCollectionArcade; else n=PerfectCollectionPC; fi
+            ( cd pkg$e
+              if [ "${{ runner.os }}" = "Windows" ]; then 7z a ../$n-${{ matrix.name }}.zip . ; else tar czf ../$n-${{ matrix.name }}.tar.gz . ; fi )
+          done
       - name: Enviar artefato (tentativa 1)
         id: up1
         continue-on-error: true
@@ -54,7 +62,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
-          path: PiuReconstructed-${{ matrix.name }}.*
+          path: PerfectCollection*-${{ matrix.name }}.*
           overwrite: true
       - name: Enviar artefato (tentativa 2)
         if: steps.up1.outcome == 'failure'
@@ -64,7 +72,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
-          path: PiuReconstructed-${{ matrix.name }}.*
+          path: PerfectCollection*-${{ matrix.name }}.*
           overwrite: true
       - name: Enviar artefato (tentativa 3)
         if: steps.up1.outcome == 'failure' && steps.up2.outcome == 'failure'
@@ -72,7 +80,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
-          path: PiuReconstructed-${{ matrix.name }}.*
+          path: PerfectCollection*-${{ matrix.name }}.*
           overwrite: true
   release:
     needs: build

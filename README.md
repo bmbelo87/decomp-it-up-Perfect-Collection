@@ -12,6 +12,8 @@ Como jogar: dê dois cliques em `jogar.bat` (usa a pasta `..\game`). Ou: `PiuRec
 Binarios para **Windows (x64)**, **Linux (x64)** e **macOS** sao gerados pelo GitHub Actions a cada tag `v*` (aba *Releases*). Os dados do jogo original (`PIU.EXE`, `BGA/`, `STEP/`, `AUDIO/`...) **nao** acompanham o projeto: aponte para a sua pasta com `-game <pasta>` (padrao: `../game`).
 - Linux: precisa de `libsdl2-2.0-0` (e driver OpenGL). macOS: `brew install sdl2`.
 
+Cada tag publica **duas edições** por plataforma: `PerfectCollectionArcade-<plataforma>` (`piu`, recompilação do `PIU.EXE` de 18/12/2000; dados do Arcade via `-game <pasta>`) e `PerfectCollectionPC-<plataforma>` (`piu_pc`, recriação do `pumpy.exe` de 16/04/2001; coloque o exe na pasta do jogo PC, ao lado de `Stage.cfg`, ou use `jogar_pc.bat`).
+
 ## Controles
 | | |
 |---|---|
