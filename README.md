@@ -2,6 +2,8 @@
   <img src="LogoIA.png" alt="PiuReconstructed" width="720">
 </p>
 
+**Idiomas:** **Português (BR)** · [English](README.en.md) · [Español](README.es.md)
+
 # PiuReconstructed — Pump It Up (PIU.EXE, DOS, "Dec 18 2000") recompilado em C
 
 Como jogar: dê dois cliques em `jogar.bat` (usa a pasta `..\game`). Ou: `PiuReconstructed.exe -game <pasta do jogo>`.
@@ -37,3 +39,6 @@ Auto-teste: `piu.exe -game ../game -song 101 -diff 1 -selftest 25 -shot shot.ppm
 Origem: laco principal `0x20F37` (estado em `DAT_00153710`). Sem credito o jogo fica em attract; **5 (ou F5) = moeda**,
 **Enter/Espaco = START P1**, **Num Enter/Num + = START P2**; ~1 s depois da partida vai para a selecao. ESC volta ao idle (como o original), Alt+X sai.
 Opcoes: `-freeplay` (credito infinito), `-coins N`, `-skip` (direto na selecao).
+
+## Build PC ("Perfect Collection", `pumpy.exe`)
+Segundo alvo `piu_pc` (`PIU_BUILD_PC`), com os dados da PC (`PUMPY_0416`): `piu_pc.exe -game <pasta PC>`. Diferenças e endereços: [docs/PC_DIFF.md](docs/PC_DIFF.md).

@@ -1,3 +1,5 @@
+**Idiomas:** **Português (BR)** · [English](AGENTS.en.md) · [Español](AGENTS.es.md)
+
 # AGENTS.md - PiuReconstructed
 
 Recompilacao ("recomp") em C do **Pump It Up (build DOS de 18/12/2000)**: `game/PIU.EXE` (Watcom LE/DOS4GW, Glide2x). O objetivo e reproduzir as telas e o comportamento **exatamente como o original** (fidelidade primeiro). Responda em portugues (BR).
@@ -20,4 +22,5 @@ Exemplo de achado so no ELF: codigos secretos REMIXDB / REMIXCZ (`func_2a72b`, t
 - Documente cada descoberta em `docs/FUNCTION_MAP.md` (secao "Atualizacao N").
 - Teste: `build_msvc` (CMake/MSVC Release) gera `piu.exe`; copie para `game/PIUTESTE.EXE` (se "em uso", `PIUTESTE_NOVO.EXE`). Capturas: `-shot f.ppm -selftest SEG`, atalhos `-mode N`, `-conf N`, `-wheel N -wdir D`, `-service N`.
 - Entradas: P1 `Z Q S E C` (bits 1/2 azuis Z/C = rolar, 8/0x10 Q/E = apontar, S = centro), P2 numpad `1 7 5 9 3`; F1 service, F2 test, F3 coin clear, F4 moeda; 1-8 velocidade.
+- **Documentacao em 3 idiomas**: todo `.md` tem versoes pt-BR (`X.md`, original), English (`X.en.md`) e Espanol (`X.es.md`), com a linha de idiomas no topo. Ao editar um, atualize os tres no mesmo commit.
 - Sessoes do REA: `open_binary` em um unico alvo por vez; se der `cleanup_incomplete`, rode `close_binary` e abra de novo.

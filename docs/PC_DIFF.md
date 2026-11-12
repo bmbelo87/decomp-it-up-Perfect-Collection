@@ -1,3 +1,5 @@
+**Idiomas:** **Português (BR)** · [English](PC_DIFF.en.md) · [Español](PC_DIFF.es.md)
+
 # PC_DIFF.md - Build PC (`pumpy.exe`, 16/04/2001) x Build Arcade (`PIU.EXE`, 18/12/2000)
 
 Objetivo: dois executaveis no projeto - `piu` (dados Arcade) e `piu_pc` (dados PC), mesma base de codigo com `#ifdef PIU_BUILD_PC`.

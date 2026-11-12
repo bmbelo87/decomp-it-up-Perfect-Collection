@@ -1,3 +1,5 @@
+**Idiomas:** **Português (BR)** · [English](NOT_FORMAT.en.md) · [Español](NOT_FORMAT.es.md)
+
 # Formato STEP/*.NOT (PIU.EXE DOS, build Dec 18 2000)
 
 Validado contra os **472** arquivos de `E:\06_pc\game\STEP` (tools/not_parse.py): tamanho == 0x88 + 4*count em 100%, linhas estritamente crescentes, maior linha 1560 (< 2048).
