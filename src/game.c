@@ -1307,6 +1307,9 @@ static int mode_to_sel(int dir)    /* 0x2C328 / 0x2C3DA: item (dir + cur) -> DAT
  * y (original, y para cima) = 333 -> 147 de cima; alfa = 1 - |p|*0.25, escala = 1 - |p|*0.1 com p = pos + 0.05*s; ordem 4,3,2,1 e depois -4..0; s = +-contador (20 quadros) apos pressionar baixo-esq/baixo-dir.
  * [I] sons: shift = eff\10-2 (obj 0xB66374), confirma = eff\4-1 (0xB66344); mapa lista->modo como no Arcade (ids 1 EASY, 2 HARD, 4/5 DOUBLE/BATTLE, 3 REMIX, 6 CRAZY). */
 static void orig_time(BgaRun *b, int n);
+/* Tempo da escolha de modo/musica (PC): pumpy.exe 0x40CFD0/0x40EC50 calculam 99 - ticks/240 (ticks = 0x73345C, 240/s: 0x411D20 e callback de timer de 1 ms, 240*n/1000);
+ * ou seja, comeca em 99 e cai 1 por segundo; ao zerar confirma sozinho. [C] formula, [C] bate com a captura real da PC (mostra 47). Antes: 30 s (valor do Arcade). */
+#define PC_TIME0 99
 static ResSet g_r99; static int g_r99_ok, g_pm_ph, g_pm_cnt, g_pm_cnt2, g_pm_dir = -1, g_pm_prev = -2, g_pm_idx, g_pm_t0, g_pm_idx0;      /* g_pm_idx0: so teste (-pmidx N) */
 static const char *const PM_TEX[6] = { "MM_EZ", "MM_HD", "MM_DB", "MM_NR", "MM_CZ", "MM_BTL" };
 static int pm_tex(int i)         /* 0x40C670: indice da lista (mod 5); com 2 jogadores o item 2 (DOUBLE) vira BATTLE (5) */
@@ -1407,8 +1410,8 @@ static void pm_step(void)
         if (g_pm_cnt / 2 >= 0x18) { g_pm_cnt = 0; g_pm_ph = 2; }
         return;
     }
-    int remain = 99 - g_pm_t0 / 240 > 30 ? 30 - g_pm_t0 / 60 : 99 - g_pm_t0 / 240;   /* [I] tempo: ver 0x404E20 */
-    remain = 30 - g_pm_t0 / 60;
+    int remain = PC_TIME0 - g_pm_t0 / 60;
+
     if (g_pm_cnt == 0) {                                    /* 0x40D386: a lista anda no inicio do deslocamento */
         if (g_pm_dir == 2) { if (--g_pm_idx < 0) g_pm_idx = 4; } else if (g_pm_dir == 3) { if (++g_pm_idx >= 5) g_pm_idx = 0; }
     }
@@ -1424,7 +1427,7 @@ static void pm_step(void)
 }
 static void pm_draw(void)
 {
-    int remain = 30 - g_pm_t0 / 60;
+    int remain = PC_TIME0 - g_pm_t0 / 60;
     glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT);
     /* modo (id 1 EASY/NORMAL, 2 HARD, 3 NONSTOP REMIX, 4 DOUBLE, 5 BATTLE, 6 CRAZY) -> camada de fundo animada do 099.BGA (quadro 630..660):
      * NB=6 (vermelho), HB=5 (laranja), NSB=3 (azul), DB=4 (verde), BB=2, CB=1 (rosa). Confirmado pelo usuario (cores) e pelos nomes dos .SPR. */
@@ -1797,7 +1800,7 @@ static void wheel_commit(void);
 static void pw_step(void)
 {
     if (g_pw_ph == 9) { g_pw_cnt++; g_pw_cnt2 += 2; if (g_pw_cnt >= 30) { g_pw_ph = 10; g_pw_cnt = 0; g_pw_t0 = 0; } return; }      /* 0x40EC10 */
-    int remain = 30 - g_pw_t0 / 60;
+    int remain = PC_TIME0 - g_pw_t0 / 60;
     if (g_pw_cnt == 0) {
         if (g_pw_dir == 2) { if (--g_w_pos < 0) g_w_pos = g_w_n - 1; } else if (g_pw_dir == 3) { if (++g_w_pos >= g_w_n) g_w_pos = 0; }
     }
@@ -1859,7 +1862,7 @@ static void pw_draw(void)
     pw_carousel(sh); pm_guide2(sh > 0 ? 1 : sh < 0 ? -1 : 0, g_pw_cnt, g_pw_dir, 1);
     if (g_pw_dir == 0 || g_pw_dir == 1) pw_pulse(g_pw_dir, g_pw_cnt);
     if (!sh) pw_level(g_sec[g_w_sec][g_w_list[w_idx(0)]].lv);
-    orig_time(&g_ab, 30 - g_pw_t0 / 60);
+    orig_time(&g_ab, PC_TIME0 - g_pw_t0 / 60);
     {   /* baloes 1P/2P (0x40F190): mesma logica de pm_bubbles, "apos apontar" quando dir != -1 */
         int c = g_pw_cnt % 90, sf = g_sflag, ca = cred_avail() != 0, post = g_pw_dir != -1, Lb, Bb;
         if (sf & 1) { Lb = post ? 40 : 42; Bb = post ? 570 : 390; } else if (sf & 0x280) { Lb = 39; Bb = 660; } else if (ca) { Lb = 43; Bb = 300; } else { Lb = 44; Bb = 210; }

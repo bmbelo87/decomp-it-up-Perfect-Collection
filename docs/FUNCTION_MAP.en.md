@@ -508,3 +508,8 @@ Full table in `docs/PC_DIFF.en.md` (generated with `tools/map_pc_dos.py` and `to
 ## Update 52 — Universal Remix BGA (PC: `BGAN.DAT`)
 
 **Confirmed** in `pumpy.exe` `0x40965C..0x4096E6`: songs 116–119 and 219–224 (Remix without their own `.dat`: 117, 118, 119, 219, 220, 221, 223, 224) always use `BGAN.DAT`; the others try `BGA\%03d.DAT` and fall back to `116.DAT` if the file fails. `116.DAT` holds `116.BGA` (50 layers, 120 BPM, keys with r,g,b,a colour that alternate the background) + ANI sprites (`at01..15`, `s01..15`, `t01..15`). `bga_load` applies the rule on Arcade and PC (empirical: user). Checked by screenshot (blue tunnel → red); not played.
+
+
+## Update 53 — PC Time: starts at 99 (and the position is right)
+
+**Confirmed:** `pumpy.exe` `0x40CFD0` (mode) and `0x40EC50` (music) compute `99 - ticks/240` (`ticks` = `0x73345C`, 240/s: `0x411D20` is a 1 ms timer callback, `240*n/1000`), so Time starts at 99 and drops 1 per second; at zero it confirms by itself (already implemented). Before, `piu_pc` used 30 s (the Arcade value). The real PC screenshot shows "47", consistent. **Position:** the 3 call sites of `0x40D4D0` use `(584, 0x1B5=437)`; compared with the real screenshot, the digits and the TIME label sit in the same place (±1 px). `piu_pc` only (`PC_TIME0`); the Arcade stays at 30.
