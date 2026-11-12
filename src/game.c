@@ -343,6 +343,7 @@ static int bga_load_name(BgaRun *b, const char *name)
     b->ok = 1; return 1;
 }
 static int bga_load(BgaRun *b, int id) { char n[16]; snprintf(n, sizeof n, "%03d", id); return bga_load_name(b, n); }
+static float g_afade = 1.0f;      /* fator de alfa global das camadas (0x42D034 da PC, ajustado por 0x4012F0); 1 = sem efeito */
 static void bga_draw_n(BgaRun *b, int frame, int only)   /* only >= 0: so a camada `only` (FUN_0002647A); -1: todas (FUN_0002643C) */
 {
     if (!b->ok) return;
@@ -357,7 +358,7 @@ static void bga_draw_n(BgaRun *b, int frame, int only)   /* only >= 0: so a cama
         glPushMatrix();
         glTranslatef(k.x, k.y, 0); glTranslatef(k.px, k.py, 0); glRotatef(-k.rot, 0, 0, 1);
         glScalef(k.scale, k.scale, 1); glTranslatef(-k.px, -k.py, 0);
-        glColor4f(k.r, k.g, k.b, k.a);
+        glColor4f(k.r, k.g, k.b, k.a * g_afade);
         const Spr *s = b->spr[i];
         /* m05.spr = preenchimento (alfa .5) do quadro de texto dos jogadores: tampa esq. + meio esticado + tampa dir. se encontram EXATAMENTE a 640x480; com GL_LINEAR e janela escalada a borda dura da tampa
          * vaza 1 pixel sobre o meio (linha escura nas emendas). NEAREST so nessa camada mantem a juncao exata em qualquer escala. */
@@ -704,9 +705,14 @@ static void res_digits(float x, float y, int v, int n)       /* FUN_21F81/21E9F:
 static void draw_end(void)
 {
     int frame = g_ph == PH_FAIL ? g_pc : g_ph == PH_CLEAR ? 360 + g_pc : g_ph == PH_BREAK ? 1800 + g_pc : g_ph == PH_OVER ? 2280 + g_pc : 600 + g_pc % 480;
-    glColor4f(1, 1, 1, 1); bga_draw(&g_eb, frame);
-    if (g_ph != PH_RESULT) return;
     float fade = g_pc <= 0x17c ? 1.0f : (400 - g_pc) / 20.0f; if (fade < 0) fade = 0;
+#ifdef PIU_BUILD_PC
+    /* PC (0x40A210): o DANCE GRADE inteiro esmaece (alfa de 0x4012F0 = (400-cnt)*0.05 a partir de 381 quadros), nao so os numeros; depois vem a tela LOAD1..4 */
+    if (g_ph == PH_RESULT) g_afade = fade;
+#endif
+    glColor4f(1, 1, 1, 1); bga_draw(&g_eb, frame);
+    g_afade = 1.0f;
+    if (g_ph != PH_RESULT) return;
     glPushMatrix(); glTranslatef(0, 480, 0); glScalef(1, -1, 1);
     const SprTile *t;
     for (int p = 0; p < (g_two ? 2 : 1); p++) {
