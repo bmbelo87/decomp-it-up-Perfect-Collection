@@ -1246,8 +1246,14 @@ static ResSet g_bars; static int g_bars_ok; static BgaRun g_ab2;      /* g_ab2: 
 static int g_m_frame, g_m_anim, g_m_dir = -1, g_m_prev = -1, g_m_cur = 1, g_m_sel, g_m_t0;
 static int g_mode_flag;                                     /* DAT_0012B028 |= ... (0x10,0x20,0x100,0x80,0x40,0x400) */
 static int mode_id(int k) { return k == 0 ? (((g_sflag & 3) == 3) ? 1 : 2) : k + 2; }       /* DAT_006E0EE8 >> 16 */
+#ifdef PIU_BUILD_PC
+static void pm_enter(void);
+#endif
 static void mode_enter(void)
 {
+#ifdef PIU_BUILD_PC
+    pm_enter(); return;
+#endif
     bga_unload(&g_ab); bga_load_name(&g_ab, "099");
     if (!g_bars_ok) { char p[300]; path_of(p, sizeof p, "BGA/90.DAT"); g_bars_ok = rs_open(&g_bars, p) == 0; }
     g_m_frame = g_m_anim = 0; g_m_dir = g_m_prev = -1; g_m_cur = 1; g_m_sel = 0; g_m_t0 = 0; g_state = S_MODE;
@@ -1262,8 +1268,134 @@ static int mode_to_sel(int dir)    /* 0x2C328 / 0x2C3DA: item (dir + cur) -> DAT
     switch (dir + g_m_cur) { case 0: return ((g_sflag & 3) == 3) ? 5 : 4; case 1: return 1; case 2: return 2; case 3: return 3; case 4: return 6; }
     return 0;
 }
+
+#ifdef PIU_BUILD_PC
+/* ------------------------------------------------------------------ ESCOLHA DE MODO da build PC (pumpy.exe, cena 0xB fases 0/1/2: 0x40C240 carga, 0x40C350 intro, 0x40CFD0 laco, 0x40C6C0 carrossel, 0x40C3D0/0x40C4AA baloes)
+ * [C] = lido no assembly. Carrossel horizontal de 9 posicoes (-4..4), discos MM_*.TGA da 99.dat (regiao 10..240 x 0..177 da textura 256x256, desenhada 230x176 centrada),
+ * y (original, y para cima) = 333 -> 147 de cima; alfa = 1 - |p|*0.25, escala = 1 - |p|*0.1 com p = pos + 0.05*s; ordem 4,3,2,1 e depois -4..0; s = +-contador (20 quadros) apos pressionar baixo-esq/baixo-dir.
+ * [I] sons: shift = eff\10-2 (obj 0xB66374), confirma = eff\4-1 (0xB66344); mapa lista->modo como no Arcade (ids 1 EASY, 2 HARD, 4/5 DOUBLE/BATTLE, 3 REMIX, 6 CRAZY). */
+static void orig_time(BgaRun *b, int n);
+static ResSet g_r99; static int g_r99_ok, g_pm_ph, g_pm_cnt, g_pm_cnt2, g_pm_dir = -1, g_pm_prev = -2, g_pm_idx, g_pm_t0;
+static const char *const PM_TEX[6] = { "MM_EZ", "MM_HD", "MM_DB", "MM_NR", "MM_CZ", "MM_BTL" };
+static int pm_tex(int i)         /* 0x40C670: indice da lista (mod 5); com 2 jogadores o item 2 (DOUBLE) vira BATTLE (5) */
+{
+    if (i < 0) i += 5; if (i >= 5) i -= 5;
+    if ((g_sflag & 3) == 3 && i == 2) i = 5;
+    return i;
+}
+static float pm_slot_x(int slot, int e, int sh)       /* e = sinal do deslocamento (ebp); sh = esi. Tabelas literais de 0x40C742..0x40CBD0 */
+{
+    switch (slot) {
+    case 4: return 580; case -4: return 80;
+    case 3: return e == -1 ? 2 * sh + 560 : sh + 560;
+    case 2: return e == 1 ? 2 * sh + 520 : e == -1 ? 3 * sh + 520 : sh + 520;
+    case 1: return e == 1 ? 3 * sh + 460 : e == -1 ? 6 * sh + 442 : sh + 460;
+    case -3: return (e == 1 || e == -1) ? 2 * sh + 100 : sh + 100;
+    case -2: return e == 1 ? 3 * sh + 140 : e == -1 ? 2 * sh + 140 : sh + 140;
+    case -1: return e == 1 ? 6 * sh + 200 : e == -1 ? 3 * sh + 200 : sh + 200;
+    default: return e == 1 ? 6 * sh + 338 : e == -1 ? 6 * sh + 314 : sh + 320;
+    }
+}
+static void pm_disc(int ti)
+{
+    Tex *tx = rs_tex(&g_r99, PM_TEX[ti]); if (!tx) return;
+    quad(tx, -115, -88, 230, 176, 10.f / 256, 0, 240.f / 256, 177.f / 256);
+}
+static void pm_carousel(int sh)
+{
+    int e = sh > 0 ? 1 : sh < 0 ? -1 : 0;
+    for (int pass = 0; pass < 2; pass++) {
+        int a = pass ? -4 : 4, b = pass ? 0 : 1, st = pass ? 1 : -1;
+        for (int slot = a; pass ? slot <= b : slot >= b; slot += st) {
+            float p = fabsf((float)slot + 0.05f * sh), al = 1.f - p * 0.25f, sc = 1.f - p * 0.1f;
+            if (slot == 0 && e == 0 && g_pm_dir == 0) sc = 1.1f;          /* 0x40CBDD: disco do meio selecionado = 1,1 */
+            glPushMatrix(); glTranslatef(pm_slot_x(slot, e, sh), 147, 0); glScalef(sc, sc, 1);
+            glColor4f(1, 1, 1, al); pm_disc(pm_tex(g_pm_idx + slot + e));
+            glPopMatrix();
+        }
+    }
+    glColor4f(1, 1, 1, 1);
+}
+static void pm_guide(int e)     /* fim de 0x40C6C0 (0x40CA08..0x40CDA2): guia SHIFT LEFT / CONFIRM / SHIFT RIGHT = camadas 27/28/29 (D04/D03/D02.SPR) no quadro 45; 21/22/23 e 150+ = animacoes de pressionar */
+{
+    int c = g_pm_cnt, d = g_pm_dir;
+    if (d == 0) { bga_draw_n(&g_ab, c < 22 ? 210 + c : 232, 47); bga_draw_n(&g_ab, 150 + c % 120, 23); bga_draw_n(&g_ab, 150 + c % 30, 27); }
+    else bga_draw_n(&g_ab, 45, 27);
+    if (e == 0) {
+        if (d != 0) bga_draw_n(&g_ab, 120, 47);
+        glPushMatrix(); glTranslatef(320, 147, 0); if (d == 0) glScalef(1.1f, 1.1f, 1); glColor4f(1, 1, 1, 1); pm_disc(pm_tex(g_pm_idx)); glPopMatrix();
+        bga_draw_n(&g_ab, 45, 29); bga_draw_n(&g_ab, 45, 28);
+    } else if (e < 0) { bga_draw_n(&g_ab, 150 + c % 120, 22); bga_draw_n(&g_ab, 150 + c % 30, 28); bga_draw_n(&g_ab, 45, 29); }
+    else { bga_draw_n(&g_ab, 150 + c % 120, 21); bga_draw_n(&g_ab, 150 + c % 30, 29); bga_draw_n(&g_ab, 45, 28); }
+}
+static void pm_bubbles(void)    /* 0x40C3D0 (dir==-1) e 0x40C4AA (apos apontar): camada, quadro-base; quadro = cnt%90 + base */
+{
+    int c = g_pm_cnt % 90, sf = g_sflag, ca = cred_avail() != 0, post = g_pm_dir != -1;
+    int L, B;
+    if (sf & 1) { L = post ? 40 : 42; B = post ? 570 : 390; } else if (sf & 0x280) { L = 39; B = 660; } else if (ca) { L = 43; B = 300; } else { L = 44; B = 210; }
+    bga_draw_n(&g_ab, c + B, L);
+    if (sf & 2) { if (post) bga_draw_n(&g_ab, c + 570, 34); else bga_draw_n(&g_ab, c + 390, 36); }
+    else if (sf & 0x280) bga_draw_n(&g_ab, c + 660, 33);
+    else if (ca) bga_draw_n(&g_ab, c + 300, 37);
+    else bga_draw_n(&g_ab, c + 210, 38);
+}
+static void pm_enter(void)
+{
+    bga_unload(&g_ab); bga_load_name(&g_ab, "099");
+    if (!g_r99_ok) { char p[300]; path_of(p, sizeof p, "BGA/99.DAT"); g_r99_ok = rs_open(&g_r99, p) == 0; }
+    g_pm_ph = 1; g_pm_cnt = g_pm_cnt2 = 0; g_pm_dir = -1; g_pm_prev = -2; g_pm_idx = 0; g_pm_t0 = 0; g_m_sel = 1; g_state = S_MODE;
+}
+static void pm_press(int d)     /* DAT 0xB62258 (dir): 0 centro/confirma, 2 shift esq (bit 1), 3 shift dir (bit 2); so apos 3 quadros da fase (0x40D108) */
+{
+    if (g_pm_ph != 2 || g_pm_cnt <= 3) return;
+    g_pm_prev = g_pm_dir; g_pm_dir = d; g_pm_cnt = 0; if (d >= 2) sfx_play(SFX_MOVE, 4);
+}
+static void pm_step(void)
+{
+    static const int ID[5] = { 1, 2, 4, 3, 6 };
+    if (g_pm_ph == 1) {                                   /* 0x40C350: ~48 quadros de entrada */
+        g_pm_cnt++; g_pm_cnt2 += 2;
+        if (g_pm_cnt / 2 >= 0x18) { g_pm_cnt = 0; g_pm_ph = 2; }
+        return;
+    }
+    int remain = 99 - g_pm_t0 / 240 > 30 ? 30 - g_pm_t0 / 60 : 99 - g_pm_t0 / 240;   /* [I] tempo: ver 0x404E20 */
+    remain = 30 - g_pm_t0 / 60;
+    if (g_pm_cnt == 0) {                                    /* 0x40D386: a lista anda no inicio do deslocamento */
+        if (g_pm_dir == 2) { if (--g_pm_idx < 0) g_pm_idx = 4; } else if (g_pm_dir == 3) { if (++g_pm_idx >= 5) g_pm_idx = 0; }
+    }
+    int sel = ID[g_pm_idx]; if (sel == 4 && (g_sflag & 3) == 3) sel = 5;
+    g_pm_cnt++; g_pm_cnt2 += 2; g_pm_t0++;
+    if ((g_pm_prev == g_pm_dir && g_pm_dir == 0) || remain < 1) {        /* 0x40D3BD: centro duas vezes (ou tempo esgotado) confirma */
+        if (g_pm_dir == -1) { g_pm_dir = 0; g_pm_idx = 0; sel = 1; }
+        g_m_sel = sel;
+        { static const int F[7] = { 0, 0x10, 0x20, 0x100, 0x80, 0x40, 0x400 }; g_mode_flag |= F[sel]; }
+        sfx_play(SFX_ENTER, 3);
+        bga_unload(&g_ab); bga_load_name(&g_ab, "097"); g_m_anim = 0; g_state = S_MCONF;          /* fase 3: 097.BGA (0x40D620) */
+    } else g_m_sel = sel;
+}
+static void pm_draw(void)
+{
+    int remain = 30 - g_pm_t0 / 60;
+    glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT);
+    static const int HL[7] = { 0, 5, 4, 2, 3, 1, 6 };       /* modo -> camada de barra (0x40D004..: 5/4/2/3/1/6) */
+    if (g_pm_ph == 1) {
+        bga_draw_n(&g_ab, 630 + g_pm_cnt2 % 30, 6);
+        bga_draw(&g_ab, 120 + (g_pm_cnt / 2 > 30 ? 30 : g_pm_cnt / 2));
+        pm_carousel(0); pm_guide(0); pm_bubbles(); return;
+    }
+    bga_draw_n(&g_ab, 630 + g_pm_cnt2 % 30, HL[g_m_sel]);
+    bga_draw(&g_ab, 60);
+    orig_time(&g_ab, remain);
+    pm_bubbles();
+    int sh = 0; if (g_pm_dir == 2 && g_pm_cnt < 20) sh = g_pm_cnt; else if (g_pm_dir == 3 && g_pm_cnt < 20) sh = -g_pm_cnt;
+    pm_carousel(sh); pm_guide(sh > 0 ? 1 : sh < 0 ? -1 : 0);
+}
+#endif
 static void mode_step(void)
 {
+#ifdef PIU_BUILD_PC
+    pm_step(); return;
+#endif
     int remain = 30 - g_m_t0 / 60;
     if (g_m_anim == 0) {
         if (g_m_dir == 2) { if (--g_m_cur < 0) { g_m_cur = 0; g_m_anim = 0x16; } }
@@ -1361,6 +1493,9 @@ static void draw_player_texts(int dbl)
 }
 static void draw_mode(void)
 {
+#ifdef PIU_BUILD_PC
+    pm_draw(); return;
+#endif
     int remain = 30 - g_m_t0 / 60, local = 0;
     static const int HL[7] = { 0, 3, 1, 2, 4, 6, 5 };          /* DAT_006E1778 -> camada (0x2BDDA..) */
     bga_draw_n(&g_ab, 600 + g_m_frame % 90, HL[g_m_sel]);       /* camada de destaque do modo no quadro 600..689 */
@@ -1764,6 +1899,11 @@ int main(int argc, char **argv)
                     /* PIU.EXE FUN_2BD93: bits 1/2 rolam a lista (dir 2/3), bits 8/0x10 apontam cur+0/cur+1 (dir 0/1; repetir entra); centro nao e lido.
                      * Bits do pad confirmados na pratica pelo usuario: 1/2 = baixo-esq/baixo-dir (azuis Z/C), 8/0x10 = cima-esq/cima-dir (Q/E).
                      * (A tabela de teclas do ELF Linux nao serve para isso: e o mapeamento do porte, nao dos bits do DOS.) */
+#ifdef PIU_BUILD_PC
+                    else if (k == SDLK_z || k == SDLK_KP_1 || k == SDLK_LEFT) pm_press(2);       /* PC: bit 1 = shift esq, bit 2 = shift dir, centro (4) = confirma */
+                    else if (k == SDLK_c || k == SDLK_KP_3 || k == SDLK_RIGHT) pm_press(3);
+                    else if (k == SDLK_s || k == SDLK_KP_5 || k == SDLK_RETURN || k == SDLK_SPACE) pm_press(0);
+#endif
                     else if (k == SDLK_z || k == SDLK_KP_1 || k == SDLK_LEFT) mode_press(2);
                     else if (k == SDLK_c || k == SDLK_KP_3 || k == SDLK_RIGHT) mode_press(3);
                     else if (k == SDLK_q || k == SDLK_KP_7) mode_press(0);
