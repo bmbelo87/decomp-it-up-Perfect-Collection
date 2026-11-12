@@ -1357,6 +1357,16 @@ static void pm_guide(int e)     /* fim de 0x40C6C0 (0x40CA08..0x40CDA2): guia SH
         if (ks[SDL_SCANCODE_E] || ks[SDL_SCANCODE_KP_9]) bga_draw_n(&g_ab, 150 + c % 120, 20);
     }
 }
+static void pm_pulse(int dir, int cnt)     /* 0x40CE20 (chamada em 0x40D0EA se dir 0/1): 3 copias do disco apontado crescem e esmaecem; centro (291,303)*1,1 = (320,333), p = cnt%50, como o FUN_2B459 do Arcade */
+{
+    static const float S[3][3] = { { 150, 30, 60 }, { 100, 20, 40 }, { 50, 10, 20 } };       /* 0x42A3A0/29C, 0x42A39C/354, 0x42A398/390 = 1/150,1/30; 1/100,1/20; 1/50,1/10 */
+    int p = cnt % 50;
+    for (int q = 0; q < 3; q++) if (p < (int)S[q][2]) {
+        float f = (p / S[q][0] + 1) * 1.1f;
+        glPushMatrix(); glTranslatef(320, 147, 0); glScalef(f, f, 1); glColor4f(1, 1, 1, 1 - p / S[q][1]); pm_disc(pm_tex(g_pm_idx + dir)); glPopMatrix();
+    }
+    glColor4f(1, 1, 1, 1);
+}
 static void pm_bubbles(void)    /* 0x40C3D0 (dir==-1) e 0x40C4AA (apos apontar): camada, quadro-base; quadro = cnt%90 + base */
 {
     int c = g_pm_cnt % 90, sf = g_sflag, ca = cred_avail() != 0, post = g_pm_dir != -1;
@@ -1421,6 +1431,7 @@ static void pm_draw(void)
     pm_bubbles();
     int sh = 0; if (g_pm_dir == 2 && g_pm_cnt < 20) sh = g_pm_cnt; else if (g_pm_dir == 3 && g_pm_cnt < 20) sh = -g_pm_cnt;
     pm_carousel(sh); pm_guide(sh > 0 ? 1 : sh < 0 ? -1 : 0);
+    if (g_pm_dir == 0 || g_pm_dir == 1) pm_pulse(g_pm_dir, g_pm_cnt);
     {   /* 0x406460/0x404830 (todo quadro da fase 2): creditos/FREE PLAY na mesma posicao do Arcade; so o titulo fica sem o sprite (usuario) */
         const SprTile *tl = g_freeplay ? sp2_find_x(g_sp542, "freeply") : NULL;
         if (tl) { glPushMatrix(); glTranslatef(0, 480, 0); glScalef(1, -1, 1); glColor4f(1, 1, 1, 1); glPushMatrix(); glTranslatef(320, 13, 0); tile_up(&g_arrow, tl, 0, 0); glPopMatrix(); glPopMatrix(); }
@@ -1734,6 +1745,16 @@ static void pw_step(void)
         g_m_dir = 0; wheel_commit();
     }
 }
+static void pw_pulse(int dir, int cnt)     /* 0x40E7C0 (chamada em 0x40EDCB): mesmo pulso do disco, na capa apontada; centro (291,295)*1,1 = (320,325) */
+{
+    static const float S[3][3] = { { 150, 30, 60 }, { 100, 20, 40 }, { 50, 10, 20 } };
+    int p = cnt % 50;
+    for (int q = 0; q < 3; q++) if (p < (int)S[q][2]) {
+        float f = (p / S[q][0] + 1) * 1.1f;
+        glPushMatrix(); glTranslatef(320, 155, 0); glScalef(f, f, 1); glColor4f(1, 1, 1, 1 - p / S[q][1]); pw_cover(g_songs[w_song(dir)].id); glPopMatrix();
+    }
+    glColor4f(1, 1, 1, 1);
+}
 static void pw_level(int lv)     /* 0x40C150/0x40C180 */
 {
     static const int T[10][2] = { { 186, 0 }, { 208, 0 }, { 232, 0 }, { 162, 24 }, { 186, 24 }, { 208, 24 }, { 232, 24 }, { 162, 48 }, { 186, 48 }, { 208, 48 } };
@@ -1751,7 +1772,7 @@ static void pw_carousel(int sh)
         for (int slot = a; pass ? slot <= b : slot >= b; slot += st) {
             float p = fabsf((float)slot + 0.05f * sh), al = 1.f - p * 0.25f, sc = 1.f - p * 0.1f;
             if (slot == 0 && e == 0 && (g_pw_dir == 0 || g_pw_dir == 1)) sc = 1.1f;
-            glPushMatrix(); glTranslatef(pm_slot_x(slot, e, sh), 147, 0); glScalef(sc, sc, 1);
+            glPushMatrix(); glTranslatef(pm_slot_x(slot, e, sh), 155, 0); glScalef(sc, sc, 1);      /* 0x40E050: y = 325 (y para cima) */
             glColor4f(1, 1, 1, al); pw_cover(g_songs[w_song(slot + e)].id);
             glPopMatrix();
         }
@@ -1774,6 +1795,7 @@ static void pw_draw(void)
     bga_draw_n(&g_ab, 45, 27); bga_draw_n(&g_ab, 45, 28); bga_draw_n(&g_ab, 45, 29);      /* textos do guia SHIFT LEFT / CONFIRM / SHIFT RIGHT (D04/D03/D02.SPR), como na escolha de modo [I: nao ha chamada propria em 0x40EC50] */
     int sh = 0; if (g_pw_dir == 2 && g_pw_cnt < 20) sh = g_pw_cnt; else if (g_pw_dir == 3 && g_pw_cnt < 20) sh = -g_pw_cnt;
     pw_carousel(sh);
+    if (g_pw_dir == 0 || g_pw_dir == 1) pw_pulse(g_pw_dir, g_pw_cnt);
     if (!sh) pw_level(g_sec[g_w_sec][g_w_list[w_idx(0)]].lv);
     orig_time(&g_ab, 30 - g_pw_t0 / 60);
     {   /* baloes 1P/2P (0x40F190): mesma logica de pm_bubbles, "apos apontar" quando dir != -1 */

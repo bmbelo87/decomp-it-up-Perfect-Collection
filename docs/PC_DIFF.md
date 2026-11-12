@@ -107,3 +107,7 @@ Cena 5 (0x40A210): contador `0x80B754`; 83.BGA no quadro 600+cnt%480; a partir d
 ## 14. Escolha de modo: sons e animacao pre-confirmacao (correcao)
 - [empirico] deslocar (baixo-esq/baixo-dir) e a 1a confirmacao (centro) tocam **3-2** (eff-2.wav, canal 2); a 2a confirmacao (entra no modo) toca **4-1**. Antes o deslocamento usava o 10-2 do Arcade (baixo demais).
 - [C] 0x40CDA2: pad cima-esq/cima-dir (bits 8/0x10, qualquer jogador) segurado desenha as camadas 19/20 do 099.BGA no quadro 150+cnt%120 (feedback de pressionar). O resto da animacao do centro (camadas 47/23/27, disco x1,1) ja existia em `pm_guide`.
+
+## 15. Pulso do disco/capa apontado (centro 1x)
+- [C] 0x40CE20 (modo, chamado em 0x40D0EA) e 0x40E7C0 (musica, 0x40EDCB), apenas com dir 0/1: 3 copias do disco/capa com p = cnt%50 (cnt = quadros desde o aperto): (escala 1+p/150, alfa 1-p/30, p<60), (1+p/100, 1-p/20, p<40), (1+p/50, 1-p/10, p<20), tudo x1,1 (glScalef 1,1 anterior a chamada), centradas em (320,333) no modo e (320,325) na musica. Mesma tabela do FUN_2B459 do Arcade.
+- [C] o carrossel da roda de musicas usa y=325 (y para cima) em 0x40E050, nao 333 como o de modos; corrigido (155 de cima).
