@@ -710,7 +710,7 @@ static void end_step(void)
         if (c == 70) sfx_play(9, 2);                                              /* aparece a nota: idx 9 canal 2 */
         if (c == 80 && g_fl != 0x40) {                                            /* voz da nota (RANK_A..F, idx 0x17..0x1B, canal 6) pela vida */
             float f = end_life(); int idx = f >= 0.9f ? 0x17 : f >= 0.8f ? 0x18 : f >= 0.7f ? 0x19 : f >= 0.6f ? 0x1a : 0x1b; sfx_play(idx, 6);
-            sfx_play(5, 3); }                                                         /* 5-1.WAV (idx 5) junto com a voz da nota [empirico, usuario] */
+            }
         if (c > 400 || (c > 250 && g_endkey)) end_next();
         break;
     }
