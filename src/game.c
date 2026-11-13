@@ -673,6 +673,7 @@ static void on_press(int col)       /* 0x24100..0x242B7 */
  *   1 FAILED   quadro c        (c ate 180)  -> 3      2 CLEARED  quadro 360 + c (ate 240) -> resultado (estado 5, FUN_257CF)
  *   4 BREAK    quadro 1800 + c (ate 240)    -> 3      3 GAME OVER quadro 2280 + c (ate 120) -> attract
  * Resultado: quadro 600 + c%480; sai com c > 400 (ou c > 250 e botao). */
+#define RES_FRAMES 360      /* duracao fixa do DANCE GRADE (60 Hz): 6 s */
 enum { PH_FAIL = 1, PH_CLEAR = 2, PH_OVER = 3, PH_BREAK = 4, PH_RESULT = 7 };
 static BgaRun g_eb; static int g_ph, g_pc, g_endkey, g_stage, g_fl; static float g_stlife[4];
 static int svc_break_on(void);
@@ -711,7 +712,7 @@ static void end_step(void)
         if (c == 80 && g_fl != 0x40) {                                            /* voz da nota (RANK_A..F, idx 0x17..0x1B, canal 6) pela vida */
             float f = end_life(); int idx = f >= 0.9f ? 0x17 : f >= 0.8f ? 0x18 : f >= 0.7f ? 0x19 : f >= 0.6f ? 0x1a : 0x1b; sfx_play(idx, 6);
             }
-        if (c > 400 || (c > 250 && g_endkey)) end_next();
+        if (c > RES_FRAMES) end_next();                                                /* tempo fixo (360 quadros = 6 s), sem pular por botao [pedido do usuario; antes 400, ou 250 com botao] */
         break;
     }
 }
@@ -724,7 +725,7 @@ static void res_digits(float x, float y, int v, int n)       /* FUN_21F81/21E9F:
 static void draw_end(void)
 {
     int frame = g_ph == PH_FAIL ? g_pc : g_ph == PH_CLEAR ? 360 + g_pc : g_ph == PH_BREAK ? 1800 + g_pc : g_ph == PH_OVER ? 2280 + g_pc : 600 + g_pc % 480;
-    float fade = g_pc <= 0x17c ? 1.0f : (400 - g_pc) / 20.0f; if (fade < 0) fade = 0;
+    float fade = g_pc <= RES_FRAMES - 20 ? 1.0f : (RES_FRAMES - g_pc) / 20.0f; if (fade < 0) fade = 0;
 #ifdef PIU_BUILD_PC
     /* PC (0x40A210): o DANCE GRADE inteiro esmaece (alfa de 0x4012F0 = (400-cnt)*0.05 a partir de 381 quadros), nao so os numeros; depois vem a tela LOAD1..4 */
     if (g_ph == PH_RESULT) g_afade = fade;
