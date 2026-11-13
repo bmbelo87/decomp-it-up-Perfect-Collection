@@ -2,7 +2,7 @@
 
 # Códigos secretos (setas do Arcade)
 
-Sprites extraídos de `BGA/00.DAT` (`ARROW01.PNG` / `ARROW03.PNG`, quadro 0, 54×54) por `tools/make_arrow_sprites.py`, salvos em `docs/img/arrows/`. Pad: **UL** = cima-esquerda, **UR** = cima-direita, **C** = centro, **DL** = baixo-esquerda, **DR** = baixo-direita (teclas de teste: `Q E S Z C` no P1, `7 9 5 1 3` no P2).
+Sprites extraídos de `BGA/00.DAT` (`ARROW01.PNG` / `ARROW03.PNG`, quadro de animação com todas as cores preenchidas, 54×54) por `tools/make_arrow_sprites.py`, salvos em `docs/img/arrows/`. Pad: **UL** = cima-esquerda, **UR** = cima-direita, **C** = centro, **DL** = baixo-esquerda, **DR** = baixo-direita (teclas de teste: `Q E S Z C` no P1, `7 9 5 1 3` no P2).
 
 <img src="img/arrows/UL.png" width="28" alt="UL"> UL · <img src="img/arrows/UR.png" width="28" alt="UR"> UR · <img src="img/arrows/C.png" width="28" alt="C"> C · <img src="img/arrows/DL.png" width="28" alt="DL"> DL · <img src="img/arrows/DR.png" width="28" alt="DR"> DR
 

@@ -2,7 +2,7 @@
 
 # Códigos secretos (flechas del Arcade)
 
-Sprites extraídos de `BGA/00.DAT` (`ARROW01.PNG` / `ARROW03.PNG`, cuadro 0, 54×54) con `tools/make_arrow_sprites.py`, guardados en `docs/img/arrows/`. Pad: **UL** = arriba-izquierda, **UR** = arriba-derecha, **C** = centro, **DL** = abajo-izquierda, **DR** = abajo-derecha (teclas de prueba: `Q E S Z C` en P1, `7 9 5 1 3` en P2).
+Sprites extraídos de `BGA/00.DAT` (`ARROW01.PNG` / `ARROW03.PNG`, cuadro de animación con todos los colores rellenos, 54×54) con `tools/make_arrow_sprites.py`, guardados en `docs/img/arrows/`. Pad: **UL** = arriba-izquierda, **UR** = arriba-derecha, **C** = centro, **DL** = abajo-izquierda, **DR** = abajo-derecha (teclas de prueba: `Q E S Z C` en P1, `7 9 5 1 3` en P2).
 
 <img src="img/arrows/UL.png" width="28" alt="UL"> UL · <img src="img/arrows/UR.png" width="28" alt="UR"> UR · <img src="img/arrows/C.png" width="28" alt="C"> C · <img src="img/arrows/DL.png" width="28" alt="DL"> DL · <img src="img/arrows/DR.png" width="28" alt="DR"> DR
 
