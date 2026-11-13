@@ -2266,8 +2266,8 @@ int main(int argc, char **argv)
                     if (k == SDLK_ESCAPE) { music_stop(); bga_unload(&g_ab); bga_unload(&g_ab2); g_state = S_IDLE; }
                     code_key(k);
                     if (k == SDLK_ESCAPE) {}
-                    else if (k == SDLK_z || k == SDLK_KP_1 || k == SDLK_LEFT) mode_press(2);        /* mesmas teclas da escolha de modo */
-                    else if (k == SDLK_c || k == SDLK_KP_3 || k == SDLK_RIGHT) mode_press(3);
+                    else if (k == SDLK_z || k == SDLK_KP_1 || k == SDLK_LEFT) { if (g_m_anim > 3) music_stop(); mode_press(2); }        /* mesmas teclas da escolha de modo; rolar a roda para a previa (empirico) */
+                    else if (k == SDLK_c || k == SDLK_KP_3 || k == SDLK_RIGHT) { if (g_m_anim > 3) music_stop(); mode_press(3); }
                     else if (k == SDLK_q || k == SDLK_KP_7 || k == SDLK_e || k == SDLK_KP_9) {
                         int d = (k == SDLK_q || k == SDLK_KP_7) ? 0 : 1, old = g_m_dir; mode_press(d);
                         if (g_m_dir == d && g_m_anim == 0 && old != d && music_load_pfx("D", g_songs[w_song(d)].id)) music_start();   /* UL/UR: preview Dxxx.AUD do cartaz apontado (empirico) */
