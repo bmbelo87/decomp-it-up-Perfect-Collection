@@ -1733,8 +1733,8 @@ static void code_reset(void)
 static void wheel_enter(void);
 #ifdef PIU_BUILD_PC
 /* Codigos da build PC (pumpy.exe 0x40B920 P1 / 0x40BB20 P2, chamados por 0x40BDA0 a cada toque do pad nas fases 2/6/10 da cena 0xB). [C] lido no assembly.
- * Historico de 5 toques (0xB62260 / 0xB62270) contra a tabela 0x42DFF0 (5 bytes), e de 3 toques (0xB63A28 / 0xB63A38) contra 0x42E020. O historico NAO e limpo ao casar:
- * repetir o toque final de Q Q Q avanca de novo. Pad: DL=1 DR=2 C=4 UL=8 UR=0x10. Som ao mudar algo: efeito indice 2 (obj 0xB6633C = 2-1). */
+ * Historico de 5 toques (0xB62260 / 0xB62270) contra a tabela 0x42DFF0 (5 bytes), e de 3 toques (0xB63A28 / 0xB63A38) contra 0x42E020. O historico de 5 toques NAO e limpo ao casar; o de 3 (velocidade) e limpo por pedido do usuario (empirico):
+ * no pumpy.exe repetir o toque final de Q Q Q avancava de novo. Pad: DL=1 DR=2 C=4 UL=8 UR=0x10. Som ao mudar algo: efeito indice 2 (obj 0xB6633C = 2-1). */
 static void code_press(int pl, int bit)
 {
     static const uint8_t T5[9][5] = { {1,2,1,2,1}, {8,8,0x10,0x10,4}, {8,1,0x10,2,4}, {8,1,2,0x10,4}, {8,0x10,4,8,0x10},
@@ -1769,6 +1769,8 @@ static void code_press(int pl, int bit)
             else { v &= ~0x20e; v ^= 0x200; }
         }
         *m = v;
+        memset(h3, 0, 3);      /* [empirico, usuario] limpa o historico de 3 toques ao casar: so um novo Q Q Q / E E E muda a velocidade (o pumpy.exe nao limpa: um 4o Q avancava de novo) */
+        break;
     }
     if (*m != m0 || g_mfx != f0) sfx_play(2, 5);
 }
