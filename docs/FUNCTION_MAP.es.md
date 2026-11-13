@@ -523,3 +523,12 @@ Ver `docs/PC_DIFF.es.md` §19 (opciones, `083.DAT`, idéntica a Prex3) y §20 (h
 ## Actualización 55 — CREDITS de la PC (escena 0x26)
 
 Ver `docs/PC_DIFF.es.md` §21: título DL → fade → `0x404710` (`CREDITS.PNZ` + `84.MP3`) → bucle `0x404790` (1900 cuadros o centro) → título.
+
+## Actualización 56 — STAGE BREAK por stage, DANGER y tasa de vida (Arcade)
+
+Confirmado en el ELF (`func_23a4b` 0x23BD6/0x23D60, post-juicio 0x23805, `func_24de6` 0x24F50, init 0x24B04) y por observación del usuario:
+- STAGE BREAK = N (1..4) solo vale desde el stage N: activo cuando `N != 0` y `N-1 <= stages jugados` (`0x81206CE`). 1 = ya en el 1er stage; 2 = desde el 2.º; 3 = Final; 4 = Bonus. OFF (0) nunca.
+- Activo: la vida solo se limita en 0; vaciarla (todos los jugadores < 1) llama a `func_294b9` (detiene la música), SFX 7 y pasa a la fase STAGE BREAK. Inactivo (OFF o antes del stage N): piso de vida **190 (0xBE)**, la barra nunca se vacía y `gauge_D` (DANGER, vida de ambos < 180) nunca aparece.
+- `gauge_D` solo se dibuja con STAGE BREAK activo en el stage, sin BATTLE (0x40), vidas de ambos < 0xB4, cuadros pares.
+- Tasa de vida limitada a [mín,máx] tras cada juicio (faltaba para que la barra vuelva a subir con Perfect/Great); por LEVEL (`0x86D6FBF`): 0 → 200..1000, inicio 500; 1 (y >2) → 100..900, inicio 300; 2 → 0..800, inicio 100. Modificador de MISS -700 (sin cambios).
+- Solo Arcade; la PC (pumpy.exe) mantiene el comportamiento anterior (no verificado).

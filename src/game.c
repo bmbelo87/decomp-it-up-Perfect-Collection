@@ -579,12 +579,22 @@ static int row_max(int row, int c0, int c1)     /* 0x22F21/0x22F5D/0x22F9C */
     for (int c = c0; c < c1; c++) if (g_chart.cell[row * PIU_ROWSTRIDE + c] > m) m = g_chart.cell[row * PIU_ROWSTRIDE + c];
     return m;
 }
+static int g_rmin = 100, g_rmax = 900;      /* limites da taxa de vida (0x83C62B6 / 0x83C626A), por LEVEL do GAME OPTION (0x24B04) */
+static int svc_sb_active(void); static int g_cfg_level(void);
 static void judge_grade(int p, int g)
 {
     PiuPlayer *P = &g_ps[p];
     piu_apply_judgment(P, g);
+#ifndef PIU_BUILD_PC
+    /* 0x237AD..0x23854 (pos-julgamento): taxa presa em [rmin,rmax]; vida > 1000 -> 1000; com STAGE BREAK ativo neste stage so limita em 0 (esvazia -> quebra); senao piso 190 (0xBE), nunca chega a DANGER */
+    if (P->life_rate < g_rmin) P->life_rate = g_rmin; else if (P->life_rate > g_rmax) P->life_rate = g_rmax;
+    if (P->life > 1000) P->life = 1000;
+    else if (svc_sb_active()) { if (P->life < 0) P->life = 0; }
+    else if (P->life < 190) P->life = 190;
+#else
     if (P->life > 1000) P->life = 1000;
     if (P->life < 0) P->life = 0;
+#endif
     if (P->combo > g_maxcombo) g_maxcombo = P->combo;
     if (P->combo > g_mcp[p]) g_mcp[p] = P->combo;
     g_lg[p] = g; g_lgt[p] = SDL_GetTicks();
@@ -631,6 +641,13 @@ static void start_song(int di)
     /* (antes: notas nas colunas 5-9 ligavam g_dbl. Errado: 514_H1/403_H1/505_H3 trazem as duas metades e o jogo de 1 jogador so usa as colunas 0-4.) */
     memset(g_ps, 0, sizeof g_ps);
     for (int i = 0; i < 2; i++) { g_ps[i].life = 500; g_ps[i].life_rate = 500; g_ps[i].modifier = -700; }     /* 0x24AC0..0x24B2D */
+#ifndef PIU_BUILD_PC
+    {   /* 0x24B04..0x24BF2: pelo LEVEL (0x86D6FBF; 0 e >2 como 1): 0 -> taxa 200..1000 inicio 500; 1 -> 100..900 inicio 300; 2 -> 0..800 inicio 100 */
+        int lv = g_cfg_level();
+        g_rmin = lv == 0 ? 200 : lv == 2 ? 0 : 100; g_rmax = lv == 0 ? 1000 : lv == 2 ? 800 : 900;
+        for (int i = 0; i < 2; i++) g_ps[i].life_rate = lv == 0 ? 500 : lv == 2 ? 100 : 300;
+    }
+#endif
     piu_windows(g_chart.bpm[0], &g_win_);
     g_mcp[0] = g_mcp[1] = 0; g_lrp[0] = g_lrp[1] = 0; g_prevrow = 0; g_f1p[0] = g_f1p[1] = 0; g_fail = 0; g_maxcombo = 0; g_lg[0] = g_lg[1] = 0;
     g_notes_total = 0;
@@ -763,7 +780,7 @@ static void play_update(void)
     {   /* STAGE BREAK (FUN_24DE6 0x24F50/0x24F9A): todos os jogadores com vida < 1 (com STAGE BREAK ligado, ~7 MISS seguidos) ou serie de MISS > 50 (51 MISS) */
         int na = g_two ? 2 : 1, allzero = 1, allstreak = 1;
         for (int p = 0; p < na; p++) { if (g_ps[p].life >= 1) allzero = 0; if (g_ps[p].miss_streak <= 50) allstreak = 0; }
-        if ((svc_break_on() && allzero) || allstreak) { sfx_play(7, 7); end_start(PH_BREAK); return; }       /* idx 7 canal 7 */
+        if ((svc_sb_active() && allzero) || allstreak) { sfx_play(7, 7); end_start(PH_BREAK); return; }       /* idx 7 canal 7 */
     }
     int endrow = g_endpos + 8;
     if ((row > endrow && pos > 240) || (g_mus.pcm && g_mus.pos >= g_mus.frames && row > g_endpos)) {
@@ -881,7 +898,12 @@ static void draw_play(void)
             int q = (int)(v * 256) / 6; float gx = slot ? 352.f : 32.f;
             glPushMatrix(); glTranslatef(gx, 445, 0);
             if ((t = sp2_find_x(s542, "gauge_b"))) tile_up(&g_arrow, t, 0, 0);
-            if (P->life < 180 && (fr & 1) == 0 && (t = sp2_find_x(s542, "gauge_D"))) { glColor4f(1, 1, 0, 1); tile_up(&g_arrow, t, 0, 0); glColor4f(1, 1, 1, 1); }
+#ifndef PIU_BUILD_PC
+            int dng = svc_sb_active() && g_ps[0].life < 180 && (!g_two || g_ps[1].life < 180);      /* 0x23BD6/0x23D60: opcao != 0, N-1 <= stage, sem BATTLE, vidas de ambos < 0xB4 */
+#else
+            int dng = P->life < 180;
+#endif
+            if (dng && (fr & 1) == 0 && (t = sp2_find_x(s542, "gauge_D"))) { glColor4f(1, 1, 0, 1); tile_up(&g_arrow, t, 0, 0); glColor4f(1, 1, 1, 1); }
             if ((fr & 1) && (t = sp2_find_x(s542, "gauge__"))) {      /* preenchimento so em quadros impares (c627a % 2 != 0): pisca a 30 Hz */
                 Tex *tx = rs_tex(&g_arrow, t->file);
                 if (tx) {
@@ -1133,7 +1155,9 @@ static SvcCfg g_cfg = { 0, 1, 2, 0, 1, 0, 1 };      /* DEFAULT SETTING (0x2D6B5)
 #endif
 static int g_svs, g_svcur, g_svrow, g_svlock_ok, g_svlock_err, g_svsnd_a, g_svsnd_e, g_svdate_y = 2000, g_svdate_m = 11, g_svdate_d = 1, g_svio;
 static int svc_demo_on(void) { return g_cfg.demo; }
-static int svc_break_on(void) { return g_cfg.stage != 0; }      /* opcao STAGE BREAK do GAME OPTION (OFF = 0) */
+static int svc_break_on(void) { return g_cfg.stage != 0; }
+static int g_cfg_level(void) { return g_cfg.level; }
+static int svc_sb_active(void) { int n = g_cfg.stage; return n != 0 && n - 1 <= g_stage; }      /* 0x23805: STAGE BREAK = N (1..4) vale a partir do stage N (indice jogado DAT 0x81206CE >= N-1) */      /* opcao STAGE BREAK do GAME OPTION (OFF = 0) */
 #ifdef PIU_BUILD_PC
 static void svc_apply(void) { g_cpc = 1; g_freeplay = 1; }      /* PC: sempre FREE PLAY (entradas livres) */
 #else

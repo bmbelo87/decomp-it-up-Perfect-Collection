@@ -523,3 +523,12 @@ See `docs/PC_DIFF.en.md` §19 (options, `083.DAT`, identical to Prex3) and §20 
 ## Update 55 — PC CREDITS (scene 0x26)
 
 See `docs/PC_DIFF.en.md` §21: title DL → fade → `0x404710` (`CREDITS.PNZ` + `84.MP3`) → loop `0x404790` (1900 frames or centre) → title.
+
+## Update 56 — per-stage STAGE BREAK, DANGER and life rate (Arcade)
+
+Confirmed in the ELF (`func_23a4b` 0x23BD6/0x23D60, post-judgment 0x23805, `func_24de6` 0x24F50, init 0x24B04) and by the user's observation:
+- STAGE BREAK = N (1..4) only applies from stage N on: active when `N != 0` and `N-1 <= stages played` (`0x81206CE`). 1 = already on stage 1; 2 = from stage 2; 3 = Final; 4 = Bonus. OFF (0) never.
+- Active: life is only clamped at 0; emptying it (all players < 1) calls `func_294b9` (stops the music), SFX 7 and enters the STAGE BREAK phase. Inactive (OFF or before stage N): life floor **190 (0xBE)**, the bar never empties and `gauge_D` (DANGER, both lives < 180) never shows.
+- `gauge_D` is drawn only with STAGE BREAK active for the stage, no BATTLE (0x40), both lives < 0xB4, even frames.
+- Life rate clamped to [min,max] after every judgment (this was missing for the bar to climb back with Perfect/Great); by LEVEL (`0x86D6FBF`): 0 → 200..1000, start 500; 1 (and >2) → 100..900, start 300; 2 → 0..800, start 100. MISS modifier -700 (unchanged).
+- Arcade only; the PC build (pumpy.exe) keeps the previous behaviour (not verified).
