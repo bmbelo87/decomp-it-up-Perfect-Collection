@@ -1838,7 +1838,7 @@ static void wheel_begin(void)
     g_w_pos = 0; g_m_frame = g_m_anim = 0; g_m_dir = g_m_prev = -1; g_m_t0 = 0; g_state = S_WHEEL;     /* 0x2C63F: 17A4=0, 1794=1788=-1, 179C=0, fase 5 */
 }
 /* Tela LOAD n (FUN_2C63F, 0x2C689..0x2C6A2): apos o DANCE GRADE, ao voltar a roda de musicas, TITLE\LOAD%d.PNZ (n = estagios jogados, DAT 0x81206CE) via FUN_2A533 (mesma rotina da T%03d).
- * LOAD1 e um anuncio com data 2000.12.27 (FUN_2D3DF: data > 20001227 -> usa LOAD4 no lugar), LOAD2 Banya, LOAD3 "TRY BONUS STAGE", LOAD4 "TRY NEXT STAGE". Duracao inferida (~1,5 s). */
+ * LOAD1 e um anuncio com data 2000.12.27 (FUN_2D3DF: data > 20001227 -> usa LOAD4 no lugar), LOAD2 Banya, LOAD3 "TRY BONUS STAGE", LOAD4 "TRY NEXT STAGE". Duracao inferida: 3,5 s (210 quadros; antes 1,5 s, aumentada a pedido do usuario). */
 static Tex g_ldtex; static int g_ldn, g_ldt;
 static void wheel_enter(void)
 {
@@ -1853,7 +1853,7 @@ static void wheel_enter(void)
     if (!b) { wheel_begin(); return; }
     g_ldtex = tex_from_png(b, len); free(b); g_ldn = n; g_ldt = 0; g_state = S_WLOAD;
 }
-static void wload_step(void) { if (++g_ldt >= 90) wheel_begin(); }
+static void wload_step(void) { if (++g_ldt >= 210) wheel_begin(); }      /* 3,5 s (era 1,5 s; duracao inferida, ajustada a pedido do usuario) */
 static void draw_wload(void) { glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT); glColor4f(1, 1, 1, 1); if (g_ldtex.id) quad(&g_ldtex, 0, 0, 640, 480, 0, 0, 1, 1); }
 static int w_song(int k) { return g_sec[g_w_sec][g_w_list[w_idx(k)]].song; }
 static void cover_cell(int id)                               /* FUN_2AE17 + FUN_2AD1B: quadro 200x142 centrado, recorte (j%2, j/2) da folha */
